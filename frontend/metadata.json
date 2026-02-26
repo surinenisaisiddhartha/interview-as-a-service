@@ -1,8 +1,0 @@
-{
-  "name": "HireSphere",
-  "description": "Enterprise AI-Powered Interview-as-a-Service SaaS platform for automated candidate evaluation.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
