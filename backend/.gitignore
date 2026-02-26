@@ -1,0 +1,20 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual env
+venv/
+env/
+
+# Output folders
+resume_outputs/
+jd_outputs/
+match_outputs/
+
+# OS
+.DS_Store
+Thumbs.db

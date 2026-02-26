@@ -1,0 +1,43 @@
+2026-02-26 15:36:59.974 | WARNING  | log.write:26 - D:\iaas\backend\utils\gemini_client.py:5: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+2026-02-26 15:37:00.105 | INFO     | log.log_info:35 - Using Gemini Model: gemini-2.5-flash
+2026-02-26 15:37:00.163 | INFO     | log.log_info:35 - Using Gemini Model: gemini-2.5-flash
+2026-02-26 15:37:00.190 | WARNING  | log.write:26 - D:\iaas\backend\main.py:25: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+2026-02-26 15:37:00.277 | WARNING  | log.write:26 - [32mINFO[0m:     Started server process [[36m11584[0m]
+2026-02-26 15:37:00.277 | WARNING  | log.write:26 - [32mINFO[0m:     Waiting for application startup.
+2026-02-26 15:37:00.721 | INFO     | log.log_info:35 - Database tables verified / created.
+2026-02-26 15:37:00.721 | WARNING  | log.write:26 - [32mINFO[0m:     Application startup complete.
+2026-02-26 15:37:00.721 | WARNING  | log.write:26 - [32mINFO[0m:     Uvicorn running on [1mhttp://0.0.0.0:8000[0m (Press CTRL+C to quit)
+2026-02-26 15:40:23.211 | INFO     | log.log_info:35 - Starting resume parsing...
+2026-02-26 15:40:43.066 | INFO     | log.log_info:35 - Successfully saved output to D:\iaas\backend\resume_outputs\resume_parsed_20260226_154043.json
+2026-02-26 15:40:43.066 | INFO     | log.log_info:35 - Resume parsed and saved to: D:\iaas\backend\resume_outputs\resume_parsed_20260226_154043.json
+2026-02-26 15:40:43.231 | INFO     | log.log_info:35 - Inserted candidate id=2 email=amulyagampa21@gmail.com
+2026-02-26 15:40:43.248 | INFO     | log.log_info:35 - Resume saved to DB: candidate id=2
+2026-02-26 15:41:17.703 | INFO     | log.log_info:35 - Starting JD parsing...
+2026-02-26 15:41:21.261 | INFO     | log.log_info:35 - Successfully saved output to D:\iaas\backend\jd_outputs\jd_parsed_20260226_154121.json
+2026-02-26 15:41:21.261 | INFO     | log.log_info:35 - JD parsed and saved to: D:\iaas\backend\jd_outputs\jd_parsed_20260226_154121.json
+2026-02-26 15:41:21.447 | INFO     | log.log_info:35 - Inserted job id=2 title=Data Analyst Intern
+2026-02-26 15:41:21.467 | INFO     | log.log_info:35 - JD saved to DB: job id=2 company=data
+2026-02-26 15:41:21.586 | INFO     | log.log_info:35 - Auto-matched candidate=1 vs job=2 → 60.77%
+2026-02-26 15:41:21.603 | INFO     | log.log_info:35 - Auto-matched candidate=2 vs job=2 → 45.38%
+2026-02-26 15:41:21.659 | INFO     | log.log_info:35 - Auto-matched job id=2 against 2 candidate(s).
+2026-02-26 15:41:39.609 | INFO     | log.log_info:35 - Matched candidate=1 vs job=1 → 53.53%
+2026-02-26 15:41:57.786 | INFO     | log.log_info:35 - Auto-matched candidate=1 vs job=1 → 53.53%
+2026-02-26 15:41:57.808 | INFO     | log.log_info:35 - Auto-matched candidate=2 vs job=1 → 47.65%
+2026-02-26 15:43:10.799 | WARNING  | log.write:26 - [32mINFO[0m:     Shutting down
+2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Waiting for application shutdown.
+2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Application shutdown complete.
+2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Finished server process [[36m11584[0m]
