@@ -1,0 +1,14 @@
+requests==2.32.5
+flake8==7.3.0
+black==26.1.0
+pydantic==2.12.5
+fastapi==0.132.0
+uvicorn==0.41.0
+python-multipart==0.0.22
+pypdf==6.7.2
+google-generativeai==0.8.6
+python-dotenv==1.2.1
+sqlalchemy==2.0.46
+psycopg2-binary==2.9.11
+retell-sdk==5.16.0
+
