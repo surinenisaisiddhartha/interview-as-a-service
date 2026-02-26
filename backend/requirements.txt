@@ -1,0 +1,10 @@
+requests
+flake8
+black
+pydantic
+fastapi
+uvicorn
+python-multipart
+pypdf
+google-generativeai
+python-dotenv
