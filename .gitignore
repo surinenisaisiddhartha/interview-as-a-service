@@ -1,46 +1,60 @@
 # =========================
-# Python
+# Backend (Python)
 # =========================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg
-*.egg-info/
-dist/
-build/
-.eggs/
-pip-wheel-metadata/
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+backend/.Python
+backend/*.egg
+backend/*.egg-info/
+backend/dist/
+backend/build/
+backend/.eggs/
+backend/pip-wheel-metadata/
+backend/.venv/
+backend/venv/
+backend/env/
+backend/ENV/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/logs/
+backend/*.log
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.cache/
+backend/alembic/versions/*.pyc
+backend/resume_outputs/
+backend/jd_outputs/
+backend/id_outputs/
+backend/*.sqlite3
+backend/*.db
+backend/.mypy_cache/
+backend/.ruff_cache/
 
 # =========================
-# Virtual Environments
+# Frontend (Node/Next.js)
 # =========================
-.venv/
-venv/
-env/
-ENV/
-
-# =========================
-# Environment Variables
-# =========================
-.env
-.env.*
-!.env.example
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts # Usually generated
 
 # =========================
 # Logs
 # =========================
-logs/
+logs
 *.log
-
-# =========================
-# Test / Cache
-# =========================
-.pytest_cache/
-.coverage
-htmlcov/
-.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # =========================
 # IDE / Editor
@@ -50,27 +64,8 @@ htmlcov/
 *.swp
 *.swo
 .DS_Store
-
-# =========================
-# Alembic
-# =========================
-alembic/versions/*.pyc
-
-# =========================
-# Project Generated Outputs
-# =========================
-resume_outputs/
-jd_outputs/
-id_outputs/
-
-# =========================
-# Database
-# =========================
-*.sqlite3
-*.db
-
-# =========================
-# Mypy / Ruff / Lint
-# =========================
-.mypy_cache/
-.ruff_cache/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
