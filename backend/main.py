@@ -7,7 +7,17 @@ Wires FastAPI app, registers API routers, and runs startup (DB tables).
 from fastapi import FastAPI
 
 from log import log_tool
-from api.routes import health_router, resumes_router, jobs_router, matching_router, retell_router
+from api.routes import (
+    health_router,
+    resumes_router,
+    jobs_router,
+    matching_router,
+    retell_router,
+    companies_router,
+    users_router,
+    jd_upload_router,
+    resume_upload_router,
+)
 
 # Import so SQLAlchemy Base has all models; required before create_all
 import db.models  # noqa: F401
@@ -42,6 +52,10 @@ app.include_router(resumes_router)
 app.include_router(jobs_router)
 app.include_router(matching_router)
 app.include_router(retell_router)
+app.include_router(companies_router)
+app.include_router(users_router)
+app.include_router(jd_upload_router)
+app.include_router(resume_upload_router)
 
 
 

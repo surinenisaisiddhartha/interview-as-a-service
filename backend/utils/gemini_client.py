@@ -2,7 +2,7 @@ import json
 import os
 
 from dotenv import load_dotenv
-from google import genai
+from google.genai import Client
 
 from log import log_tool
 
@@ -20,7 +20,7 @@ class GeminiClient:
             log_tool.log_error("API key for Gemini is missing.")
             raise ValueError("Use .env file or export GEMINI_API_KEY/GOOGLE_API_KEY to proceed.")
 
-        self.client = genai.Client(api_key=self.api_key)
+        self.client = Client(api_key=self.api_key)
         self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
         log_tool.log_info("Using Gemini Model: %s" % self.model_name)
 

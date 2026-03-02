@@ -1,4 +1,12 @@
 # =========================
+# Virtual environments (root)
+# =========================
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
 # Backend (Python)
 # =========================
 backend/__pycache__/
