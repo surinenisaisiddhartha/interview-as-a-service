@@ -8,3 +8,4 @@ class MatchCandidatesToJobRequest(BaseModel):
 
     candidate_ids: list[int]
     job_id: int
+

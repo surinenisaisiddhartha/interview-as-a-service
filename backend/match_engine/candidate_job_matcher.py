@@ -13,7 +13,7 @@ WEIGHT_PREFERRED_SKILLS = 20  # %
 WEIGHT_EXPERIENCE = 30  # %
 
 
-class Matcher:
+class CandidateJobMatcher:
     """
     Matches Candidates against Jobs using data stored in PostgreSQL.
 

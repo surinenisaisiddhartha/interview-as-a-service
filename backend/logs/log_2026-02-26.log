@@ -41,3 +41,26 @@ https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/READM
 2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Waiting for application shutdown.
 2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Application shutdown complete.
 2026-02-26 15:43:10.907 | WARNING  | log.write:26 - [32mINFO[0m:     Finished server process [[36m11584[0m]
+2026-02-26 17:45:47.423 | WARNING  | log.write:26 - D:\iaas\backend\utils\gemini_client.py:5: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+2026-02-26 17:45:47.536 | INFO     | log.log_info:35 - Using Gemini Model: gemini-2.5-flash
+2026-02-26 17:45:47.572 | INFO     | log.log_info:35 - Using Gemini Model: gemini-2.5-flash
+2026-02-26 17:45:47.592 | WARNING  | log.write:26 - D:\iaas\backend\main.py:25: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+2026-02-26 17:45:47.694 | WARNING  | log.write:26 - [32mINFO[0m:     Started server process [[36m2556[0m]
+2026-02-26 17:45:47.694 | WARNING  | log.write:26 - [32mINFO[0m:     Waiting for application startup.
+2026-02-26 17:45:48.366 | INFO     | log.log_info:35 - Database tables verified / created.
+2026-02-26 17:45:48.366 | WARNING  | log.write:26 - [32mINFO[0m:     Application startup complete.
+2026-02-26 17:45:48.366 | WARNING  | log.write:26 - [32mINFO[0m:     Uvicorn running on [1mhttp://0.0.0.0:8000[0m (Press CTRL+C to quit)
