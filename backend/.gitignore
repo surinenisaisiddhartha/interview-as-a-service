@@ -1,0 +1,76 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# =========================
+# Virtual Environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Test / Cache
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# =========================
+# Alembic
+# =========================
+alembic/versions/*.pyc
+
+# =========================
+# Project Generated Outputs
+# =========================
+resume_outputs/
+jd_outputs/
+id_outputs/
+
+# =========================
+# Database
+# =========================
+*.sqlite3
+*.db
+
+# =========================
+# Mypy / Ruff / Lint
+# =========================
+.mypy_cache/
+.ruff_cache/
