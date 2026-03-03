@@ -1,14 +1,35 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText, CheckCircle2, X, Wand2, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, X, Wand2, Loader2, Briefcase, Building2, CheckCircle } from 'lucide-react';
+import { MOCK_JDS, MOCK_COMPANIES } from '@/data/mockData';
 
 export default function UploadResumePage() {
     const [files, setFiles] = useState<File[]>([]);
     const [processing, setProcessing] = useState(false);
     const [processed, setProcessed] = useState<string[]>([]);
+    const [selectedRoleId, setSelectedRoleId] = useState<string>('');
+    const [assignmentSaved, setAssignmentSaved] = useState(false);
+
+    const roleOptions = useMemo(
+        () =>
+            MOCK_JDS.map(jd => {
+                const company = MOCK_COMPANIES.find(c => c.id === jd.companyId);
+                return {
+                    id: jd.id,
+                    label: jd.title,
+                    company: company?.name || 'Unknown company',
+                };
+            }),
+        [],
+    );
+
+    const selectedRole = useMemo(
+        () => roleOptions.find(r => r.id === selectedRoleId),
+        [roleOptions, selectedRoleId],
+    );
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -21,6 +42,7 @@ export default function UploadResumePage() {
         await new Promise(res => setTimeout(res, 2000));
         setProcessed(files.map(f => f.name));
         setProcessing(false);
+        setAssignmentSaved(false);
     };
 
     return (
@@ -73,6 +95,76 @@ export default function UploadResumePage() {
                                     </div>
                                 ))}
                             </div>
+                        </Card>
+                    )}
+
+                    {files.length > 0 && (
+                        <Card>
+                            <CardHeader
+                                title="Assign resumes to a role"
+                                description="Select which role and company these uploaded resumes should be evaluated against."
+                            />
+                            <CardContent className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-bold text-gray-700">
+                                        Select Role
+                                    </label>
+                                    <select
+                                        value={selectedRoleId}
+                                        onChange={e => {
+                                            setSelectedRoleId(e.target.value);
+                                            setAssignmentSaved(false);
+                                        }}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">Choose a role...</option>
+                                        {roleOptions.map(r => (
+                                            <option key={r.id} value={r.id}>
+                                                {r.label} &mdash; {r.company}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {selectedRole && (
+                                    <div className="flex items-center justify-between bg-gray-50 border border-dashed border-gray-200 rounded-xl px-4 py-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                                                <Briefcase className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-800">
+                                                    {selectedRole.label}
+                                                </p>
+                                                <p className="flex items-center text-xs text-gray-500">
+                                                    <Building2 className="w-3.5 h-3.5 mr-1" />
+                                                    {selectedRole.company}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-gray-400">
+                                            {files.length} resumes selected
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between">
+                                    <Button
+                                        onClick={() => setAssignmentSaved(true)}
+                                        disabled={!selectedRoleId}
+                                    >
+                                        Save Assignment
+                                    </Button>
+
+                                    {assignmentSaved && selectedRole && (
+                                        <div className="flex items-center text-xs text-emerald-600">
+                                            <CheckCircle className="w-4 h-4 mr-1" />
+                                            Saved for {selectedRole.label} at{' '}
+                                            {selectedRole.company}
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
                         </Card>
                     )}
                 </div>

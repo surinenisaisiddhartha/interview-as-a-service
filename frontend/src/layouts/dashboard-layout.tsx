@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@/providers/auth-provider';
+import { useSession, signOut } from 'next-auth/react';
 import { Role } from '@/types';
 import {
   LayoutDashboard,
@@ -50,14 +50,16 @@ const SidebarLink = ({ to, icon: Icon, label, collapsed }: { to: string; icon: R
 };
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const { user, logout } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    // With credentials-based login there is no Cognito SSO browser session.
+    // Simply clearing the NextAuth JWT cookie is sufficient.
+    await signOut({ callbackUrl: '/login' });
   };
 
   const menuItems = {
@@ -81,8 +83,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     ],
     [Role.RECRUITER]: [
       { to: '/recruiter/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/recruiter/upload-resume', icon: Upload, label: 'Upload Resume' },
-      { to: '/recruiter/upload-jd', icon: Briefcase, label: 'Upload JD' },
+      { to: '/recruiter/jds', icon: Briefcase, label: 'JD Section' },
       { to: '/recruiter/candidates', icon: Users, label: 'Candidates' },
       { to: '/recruiter/interviews', icon: Microscope, label: 'Interviews' },
       { to: '/recruiter/schedule', icon: Calendar, label: 'Schedule' },
@@ -90,7 +91,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     ],
   };
 
-  const currentRole = user?.role || Role.RECRUITER;
+  // Map NextAuth role strings to the Role enum used for sidebar menu items
+  const roleMap: Record<string, Role> = {
+    superadmin: Role.SUPER_ADMIN,
+    company_admin: Role.ADMIN,
+    recruiter: Role.RECRUITER,
+  };
+  const currentRole = roleMap[(user as any)?.role] || Role.RECRUITER;
   const items = menuItems[currentRole] || [];
 
   return (

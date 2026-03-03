@@ -1,22 +1,21 @@
 'use client';
 
 import { DashboardLayout } from '@/layouts/dashboard-layout';
-import { useAuth } from '@/providers/auth-provider';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Role } from '@/types';
 
 export default function DashboardGroupLayout({ children }: { children: React.ReactNode }) {
-    const { user, isLoading } = useAuth();
+    const { data: session, status } = useSession();
     const router = useRouter();
 
     useEffect(() => {
-        if (!isLoading && !user) {
+        if (status === 'unauthenticated') {
             router.push('/login');
         }
-    }, [user, isLoading, router]);
+    }, [status, router]);
 
-    if (isLoading) {
+    if (status === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="flex flex-col items-center">
@@ -27,7 +26,7 @@ export default function DashboardGroupLayout({ children }: { children: React.Rea
         );
     }
 
-    if (!user) return null;
+    if (!session) return null;
 
     return <DashboardLayout>{children}</DashboardLayout>;
 }

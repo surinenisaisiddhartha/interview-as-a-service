@@ -3,23 +3,13 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Wand2, Loader2, CheckCircle2, Upload } from 'lucide-react';
+import { Briefcase, CheckCircle2, Upload } from 'lucide-react';
 
 export default function UploadJDPage() {
     const [title, setTitle] = useState('');
     const [jdText, setJdText] = useState('');
     const [department, setDepartment] = useState('Engineering');
-    const [analyzing, setAnalyzing] = useState(false);
-    const [skills, setSkills] = useState<string[]>([]);
     const [saved, setSaved] = useState(false);
-
-    const handleAnalyze = async () => {
-        if (!jdText.trim()) return;
-        setAnalyzing(true);
-        await new Promise(res => setTimeout(res, 1800));
-        setSkills(['React', 'TypeScript', 'Next.js', 'REST APIs', 'System Design', 'Node.js']);
-        setAnalyzing(false);
-    };
 
     const handleSave = async () => {
         setSaved(true);
@@ -68,11 +58,7 @@ export default function UploadJDPage() {
                                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                             </div>
                             <div className="flex space-x-3">
-                                <Button onClick={handleAnalyze} disabled={analyzing || !jdText} variant="secondary">
-                                    {analyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
-                                    Extract Skills with AI
-                                </Button>
-                                <Button onClick={handleSave} disabled={!title || !skills.length}>
+                                <Button onClick={handleSave} disabled={!title || !jdText.trim()}>
                                     {saved ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
                                     {saved ? 'Saved!' : 'Save JD'}
                                 </Button>
@@ -81,27 +67,7 @@ export default function UploadJDPage() {
                     </Card>
                 </div>
 
-                <div className="space-y-6">
-                    <Card className={!skills.length ? 'opacity-50' : ''}>
-                        <CardHeader title="AI Extracted Skills" />
-                        <CardContent>
-                            {skills.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {skills.map(s => (
-                                        <span key={s} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 flex items-center">
-                                            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> {s}
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-8 text-center">
-                                    <Briefcase className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                                    <p className="text-sm text-gray-400">Extract skills to see AI analysis</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                <div className="space-y-6" />
             </div>
         </div>
     );
