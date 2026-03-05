@@ -3,7 +3,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from log import log_tool
-from application.services.parse_jd_service import ParseJDService
+from services.parse_jd_service import ParseJDService
 
 router = APIRouter(prefix="/parse-jd", tags=["Jobs"])
 

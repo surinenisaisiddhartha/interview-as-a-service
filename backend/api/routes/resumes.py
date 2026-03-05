@@ -3,7 +3,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from log import log_tool
-from application.services.parse_resume_service import ParseResumeService
+from services.parse_resume_service import ParseResumeService
 
 router = APIRouter(prefix="/parse-resume", tags=["Resumes"])
 

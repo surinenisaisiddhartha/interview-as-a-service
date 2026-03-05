@@ -1,5 +1,6 @@
 """User creation inside a company — create user and S3 folder structure."""
 
+from ast import Str
 from fastapi import APIRouter, HTTPException
 
 from log import log_tool
@@ -13,7 +14,10 @@ _storage = TenantStorageService()
 
 class UserCreateRequest(BaseModel):
     email: str
+    name: str
     role: str
+    phone_number: str
+
 
 
 class UserCreateResponse(BaseModel):
@@ -29,6 +33,8 @@ def create_user(company_id: str, body: UserCreateRequest):
         user_id = _storage.onboard_user(
             company_id=company_id,
             email=body.email,
+            name=body.name,
+            phone_number=body.phone_number,
             role=body.role,
         )
         return UserCreateResponse(user_id=user_id)

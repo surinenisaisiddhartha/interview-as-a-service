@@ -3,9 +3,9 @@ from pydantic import BaseModel
 import logging
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
-from application.services.retell_service import RetellService
+from services.retell_service import RetellService
 
-from application.schemas import UpdateLlmPayload, RetellAgentResponse, RetellLlmResponse
+from schemas import UpdateLlmPayload, RetellAgentResponse, RetellLlmResponse
 
 logger = logging.getLogger(__name__)
 

@@ -110,7 +110,7 @@ class TenantStorageService:
 
     # USER ONBOARDING
 
-    def onboard_user(self, company_id: str, email: str, role: str) -> str:
+    def onboard_user(self, company_id: str, email: str, name: str, phone_number: str, role: str) -> str:
         """
         Creates:
             companies/{company_id}/users/{role-shortuuid}/
@@ -118,11 +118,14 @@ class TenantStorageService:
         """
 
         short_id = generate_short_uuid()
+        first_name = name.split(" ")[0]
+        name_slug = generate_slug(first_name)
         user_id = f"{role}-{short_id}"
 
         base_path = f"companies/{company_id}/users/{user_id}/"
 
-        log_tool.log_info(f"Onboarding user: {email} ({user_id})")
+        # log_tool.log_info(f"Onboarding user: {email} ({user_id})")
+        log_tool.log_info(f"Onboarding user: {email} ({user_id}), phone_number:: {phone_number}")
 
         folders = [
             base_path,

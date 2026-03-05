@@ -1,7 +1,7 @@
 """Health and root endpoint."""
 
 from fastapi import APIRouter
-from application.schemas import HealthResponse
+from schemas import HealthResponse
 
 router = APIRouter(tags=["Health"])
 
