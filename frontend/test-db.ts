@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import pool from './src/lib/db';
+
 async function main() {
-  const users = await prisma.user.findMany()
-  console.log("USERS:", JSON.stringify(users, null, 2))
+  const result = await pool.query('SELECT id, email, role FROM users ORDER BY created_at DESC LIMIT 10');
+  console.log("USERS:", JSON.stringify(result.rows, null, 2));
+  await pool.end();
 }
-main()
+main();

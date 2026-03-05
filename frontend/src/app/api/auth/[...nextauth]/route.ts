@@ -1,8 +1,9 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/prisma";
+import pool from "@/lib/db";
 import { authenticateCognitoUser } from "@/lib/cognito";
+import crypto from "crypto";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -39,7 +40,6 @@ export const authOptions: NextAuthOptions = {
                         cognitoGroups: user.groups,
                     };
                 } catch (err: any) {
-                    // Surface the error message to the login form
                     throw new Error(err.message || 'Invalid email or password');
                 }
             },
@@ -59,27 +59,25 @@ export const authOptions: NextAuthOptions = {
                     if (groups.includes('SuperAdmin')) dbRole = 'superadmin';
                     else if (groups.includes('Admin') || groups.includes('CompanyAdmin')) dbRole = 'company_admin';
 
-                    // Sync User to postgres database (upsert to handle both creation and subsequent logins)
-                    const dbUser = await prisma.user.upsert({
-                        where: { cognitoSub },
-                        update: {
-                            // Keep role synced with Cognito groups if it changes
-                            role: dbRole
-                        },
-                        create: {
-                            cognitoSub,
-                            email,
-                            role: dbRole,
-                        }
-                    });
+                    // Sync User to postgres database using raw SQL upsert
+                    // id follows the S3 slug pattern: {role}-{hex8}
+                    const newUserId = `${dbRole}-${crypto.randomBytes(4).toString('hex')}`;
 
+                    const result = await pool.query(
+                        `INSERT INTO users (id, cognito_sub, email, role)
+                         VALUES ($1, $2, $3, $4::"Role")
+                         ON CONFLICT (cognito_sub) DO UPDATE
+                           SET role = EXCLUDED.role
+                         RETURNING id, role, company_id`,
+                        [newUserId, cognitoSub, email, dbRole]
+                    );
+
+                    const dbUser = result.rows[0];
                     token.userId = dbUser.id;
                     token.role = dbUser.role;
-                    token.companyId = dbUser.companyId;
+                    token.companyId = dbUser.company_id;
                 } catch (error) {
                     console.error("Error syncing Cognito user to Database:", error);
-                    // Attach a dummy or fallback to the token so the login doesn't entirely crash, 
-                    // though they won't have DB-driven rights.
                     token.error = "DatabaseSyncFailed";
                 }
             }

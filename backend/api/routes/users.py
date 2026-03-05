@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from db.models import Role, User
+from db.models import Role, User, Company
 from log import log_tool
 from pydantic import BaseModel
 from s3_utils.tenant_onboarder import TenantStorageService
@@ -35,8 +35,9 @@ def create_user(
     """
     Create a user under a company.
 
-    - Persists a User row in PostgreSQL (linked to Cognito via cognito_sub)
     - Creates S3 structure: companies/{company_id}/users/{user_id}/, .../jds/
+    - Persists a User row in PostgreSQL using the S3 user_id as the primary key
+    - Links the user to the company via company_id (the S3 company slug-ID)
     """
     try:
         # Validate role value against Role enum
@@ -44,6 +45,11 @@ def create_user(
             role_enum = Role(body.role)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid role")
+
+        # Validate that the company exists
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
 
         # Enforce uniqueness on email and cognito_sub
         existing_by_email = db.query(User).filter(User.email == body.email).first()
@@ -58,18 +64,7 @@ def create_user(
                 status_code=400, detail="User with this Cognito subject already exists"
             )
 
-        # Create DB user record (company_id left null here because FastAPI
-        # uses an S3-specific company identifier, not the DB UUID primary key)
-        db_user = User(
-            cognito_sub=body.cognito_sub,
-            email=body.email,
-            name=body.name,
-            phone_number=body.phone_number,
-            role=role_enum,
-        )
-        db.add(db_user)
-
-        # Create S3 structure for this user; if S3 fails we roll back DB as well
+        # Create S3 folder structure first — the returned user_id IS the PK
         user_id = _storage.onboard_user(
             company_id=company_id,
             email=body.email,
@@ -78,6 +73,17 @@ def create_user(
             role=body.role,
         )
 
+        # Persist to DB using the S3 ID as the primary key, linked to the company
+        db_user = User(
+            id=user_id,
+            cognito_sub=body.cognito_sub,
+            email=body.email,
+            name=body.name,
+            phone_number=body.phone_number,
+            role=role_enum,
+            company_id=company_id,
+        )
+        db.add(db_user)
         db.commit()
 
         return UserCreateResponse(user_id=user_id)

@@ -1,12 +1,10 @@
 from datetime import datetime, timezone
 import enum
-import uuid
 
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, Index, ForeignKey, UniqueConstraint, Enum, text
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
 from db.database import Base
@@ -145,7 +143,8 @@ class Role(enum.Enum):
 class Company(Base):
     __tablename__ = "companies"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # id is the S3 slug-ID (e.g. "tcs-india-ab12ef34") — set explicitly on insert
+    id = Column(String, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -156,7 +155,8 @@ class Company(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # id is the S3 slug-ID (e.g. "recruiter-ab12ef34") — set explicitly on insert
+    id = Column(String, primary_key=True)
     cognito_sub = Column(String, nullable=False, unique=True)
     email = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=True)
@@ -166,7 +166,7 @@ class User(Base):
         nullable=False,
         server_default=text("'recruiter'::\"Role\""),
     )
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
+    company_id = Column(String, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (

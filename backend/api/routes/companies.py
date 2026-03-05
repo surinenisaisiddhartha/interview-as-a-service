@@ -27,8 +27,8 @@ def onboard_company(body: CompanyOnboardRequest, db: Session = Depends(get_db)):
     """
     Onboard a new company.
 
-    - Creates a Company row in PostgreSQL (if it does not already exist)
     - Creates S3 structure: companies/{company_id}/, companies/{company_id}/users/
+    - Saves a Company row in PostgreSQL using the S3 ID as the primary key
     """
     try:
         # Ensure we do not create duplicate companies by name
@@ -36,12 +36,12 @@ def onboard_company(body: CompanyOnboardRequest, db: Session = Depends(get_db)):
         if existing:
             raise HTTPException(status_code=400, detail="Company with this name already exists")
 
-        company_row = Company(name=body.company_name)
-        db.add(company_row)
-
-        # Create S3 structure; if this fails we roll back the DB transaction
+        # Generate S3 folder structure first — the returned company_id IS the PK
         company_id = _storage.onboard_company(body.company_name)
 
+        # Persist to DB using the S3 ID as the primary key
+        company_row = Company(id=company_id, name=body.company_name)
+        db.add(company_row)
         db.commit()
 
         return CompanyOnboardResponse(company_id=company_id)
