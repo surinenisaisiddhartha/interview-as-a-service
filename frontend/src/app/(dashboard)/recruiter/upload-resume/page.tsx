@@ -5,13 +5,21 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, FileText, CheckCircle2, X, Wand2, Loader2, Briefcase, Building2, CheckCircle } from 'lucide-react';
 import { MOCK_JDS, MOCK_COMPANIES } from '@/data/mockData';
+import { useSession } from 'next-auth/react';
+import { onboardingApi } from '@/services/onboarding.api';
 
 export default function UploadResumePage() {
+    const { data: session } = useSession();
+    const companyId = (session?.user as any)?.companyId as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+
     const [files, setFiles] = useState<File[]>([]);
     const [processing, setProcessing] = useState(false);
     const [processed, setProcessed] = useState<string[]>([]);
     const [selectedRoleId, setSelectedRoleId] = useState<string>('');
     const [assignmentSaved, setAssignmentSaved] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     const roleOptions = useMemo(
         () =>
@@ -45,12 +53,44 @@ export default function UploadResumePage() {
         setAssignmentSaved(false);
     };
 
+    const handleUpload = async () => {
+        if (!companyId || !userId) {
+            setErrorMsg('Missing session context (company/user). Please login again.');
+            return;
+        }
+        if (!selectedRoleId) {
+            setErrorMsg('Please select a role (JD) to assign these resumes.');
+            return;
+        }
+        if (files.length === 0) {
+            setErrorMsg('Please add at least one resume file.');
+            return;
+        }
+
+        setIsUploading(true);
+        setErrorMsg('');
+        try {
+            await onboardingApi.uploadResumes(companyId, userId, selectedRoleId, files);
+            setAssignmentSaved(true);
+        } catch (e: any) {
+            setErrorMsg(e?.message || 'Failed to upload resumes');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Upload Resumes</h1>
                 <p className="text-gray-500">Add candidate profiles. AI will parse and extract skills automatically.</p>
             </div>
+
+            {errorMsg && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+                    {errorMsg}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
@@ -100,11 +140,11 @@ export default function UploadResumePage() {
 
                     {files.length > 0 && (
                         <Card>
-                            <CardHeader
-                                title="Assign resumes to a role"
-                                description="Select which role and company these uploaded resumes should be evaluated against."
-                            />
+                            <CardHeader title="Assign resumes to a role" />
                             <CardContent className="space-y-4">
+                                <p className="text-sm text-gray-500">
+                                    Select which role and company these uploaded resumes should be evaluated against.
+                                </p>
                                 <div className="space-y-1">
                                     <label className="text-sm font-bold text-gray-700">
                                         Select Role
@@ -150,10 +190,10 @@ export default function UploadResumePage() {
 
                                 <div className="flex items-center justify-between">
                                     <Button
-                                        onClick={() => setAssignmentSaved(true)}
-                                        disabled={!selectedRoleId}
+                                        onClick={handleUpload}
+                                        disabled={!selectedRoleId || files.length === 0 || isUploading}
                                     >
-                                        Save Assignment
+                                        {isUploading ? 'Uploading...' : 'Upload Resumes'}
                                     </Button>
 
                                     {assignmentSaved && selectedRole && (

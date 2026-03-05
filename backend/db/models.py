@@ -1,8 +1,14 @@
 from datetime import datetime, timezone
+import enum
+import uuid
+
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Index, ForeignKey, UniqueConstraint
+    Column, Integer, String, Float, DateTime, Index, ForeignKey, UniqueConstraint, Enum, text
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import func
+
 from db.database import Base
 
 
@@ -128,3 +134,44 @@ class Match(Base):
 
     def __repr__(self):
         return f"<Match candidate={self.candidate_id} job={self.job_id} score={self.final_match_percentage}>"
+
+
+class Role(enum.Enum):
+    superadmin = "superadmin"
+    company_admin = "company_admin"
+    recruiter = "recruiter"
+
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<Company id={self.id} name={self.name}>"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cognito_sub = Column(String, nullable=False, unique=True)
+    email = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    role = Column(
+        Enum(Role, name="Role"),
+        nullable=False,
+        server_default=text("'recruiter'::\"Role\""),
+    )
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_users_company_id", "company_id"),
+    )
+
+    def __repr__(self):
+        return f"<User id={self.id} email={self.email} role={self.role}>"

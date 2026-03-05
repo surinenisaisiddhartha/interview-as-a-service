@@ -8,6 +8,8 @@ import { Search, Filter, Plus, MoreHorizontal } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { FormInput } from '@/components/forms/form-input';
 import { useRouter } from 'next/navigation';
+import { companiesApi } from '@/services/companies.api';
+import { onboardingApi } from '@/services/onboarding.api';
 
 export default function SuperAdminCompanies() {
     const router = useRouter();
@@ -22,7 +24,6 @@ export default function SuperAdminCompanies() {
 
     const [formData, setFormData] = useState({
         companyName: '',
-        adminEmail: ''
     });
 
     useEffect(() => {
@@ -32,11 +33,8 @@ export default function SuperAdminCompanies() {
     const fetchCompanies = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('/api/companies');
-            if (res.ok) {
-                const data = await res.json();
-                setCompanies(data);
-            }
+            const data = await companiesApi.getCompanies();
+            setCompanies(data as any[]);
         } catch (error) {
             console.error('Failed to fetch companies', error);
         } finally {
@@ -50,39 +48,11 @@ export default function SuperAdminCompanies() {
         setErrorMsg('');
 
         try {
-            // 1. Create Company
-            const compRes = await fetch('/api/companies', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: formData.companyName })
-            });
-            const compData = await compRes.json();
-
-            if (!compRes.ok) {
-                throw new Error(compData.error || 'Failed to create company');
-            }
-
-            // 2. Create Company Admin mapped to this company
-            if (formData.adminEmail) {
-                const userRes = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: formData.adminEmail,
-                        role: 'company_admin',
-                        companyId: compData.id
-                    })
-                });
-
-                if (!userRes.ok) {
-                    const userData = await userRes.json();
-                    throw new Error(userData.error || 'Failed to create company admin');
-                }
-            }
+            await onboardingApi.onboardCompany(formData.companyName);
 
             // Success
             setIsModalOpen(false);
-            setFormData({ companyName: '', adminEmail: '' });
+            setFormData({ companyName: '' });
             fetchCompanies();
 
         } catch (error: any) {
@@ -168,19 +138,6 @@ export default function SuperAdminCompanies() {
                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     />
 
-                    <FormInput
-                        label="Admin Email Address"
-                        required
-                        type="email"
-                        placeholder="admin@acme.com"
-                        value={formData.adminEmail}
-                        onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
-                    />
-
-                    <div className="text-xs text-gray-500 mt-1 mb-4">
-                        An email will be sent by AWS Cognito to this address with a temporary password.
-                    </div>
-
                     <div className="flex justify-end space-x-2 pt-4 border-t">
                         <Button
                             type="button"
@@ -191,7 +148,7 @@ export default function SuperAdminCompanies() {
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Creating...' : 'Create Company & Admin'}
+                            {isSubmitting ? 'Creating...' : 'Create Company'}
                         </Button>
                     </div>
                 </form>
