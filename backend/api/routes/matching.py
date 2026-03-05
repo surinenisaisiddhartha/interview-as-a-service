@@ -3,8 +3,8 @@
 from fastapi import APIRouter, HTTPException
 
 from log import log_tool
-from schemas import MatchCandidatesToJobRequest, BatchMatchResponse, RankedMatchesResponse
-from services.matching_service import MatchingService
+from application.schemas import MatchCandidatesToJobRequest, BatchMatchResponse, RankedMatchesResponse
+from application.services.matching_service import MatchingService
 
 router = APIRouter(tags=["Matching"])
 
@@ -20,7 +20,7 @@ def match_candidates_to_job(payload: MatchCandidatesToJobRequest):
         candidate_ids: [1, 2, 3]
         job_id: 1
 
-    Scoring: Required Skills 50%, Preferred Skills 20%, Work Experience 30%.
+    Scoring: Req Skills (50%), Pref Skills (20%), Edu (10%), Exp (15%), Loc (5%).
     All results are saved to the matches table.
     """
     try:

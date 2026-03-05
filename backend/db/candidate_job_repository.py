@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from log import log_tool
 from db.database import SessionLocal
 from db.models import Candidate, Job
+from application.services.embedding_service import upsert_candidate_vector, upsert_job_vector
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +47,14 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
     location = candidate_data.get("current_location", {}) or {}
     education = candidate_data.get("education", {}) or {}
     degrees = candidate_data.get("degrees", []) or []
-    gpa = education.get("gpa") or (degrees[0].get("gpa") if degrees else None)
+    
+    # Defensive check: if degrees are strings, they won't have a '.get' method
+    gpa = education.get("gpa")
+    if not gpa and degrees:
+        first_degree = degrees[0]
+        if isinstance(first_degree, dict):
+            gpa = first_degree.get("gpa")
+        # if it's a string, we just leave gpa as None (it's likely already in education.gpa anyway)
 
     candidate = Candidate(
         full_name=candidate_data.get("full_name"),
@@ -74,18 +82,53 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
 
     db = SessionLocal()
     try:
-        db.add(candidate)
+        # Check if candidate already exists by email
+        existing_candidate = db.query(Candidate).filter(Candidate.email == email).first()
+        
+        if existing_candidate:
+            log_tool.log_info("Candidate with email %s already exists. Updating record id=%s" % (email, existing_candidate.id))
+            # Update fields
+            existing_candidate.full_name = candidate.full_name
+            existing_candidate.phone_number = candidate.phone_number
+            existing_candidate.phone_country_code = candidate.phone_country_code
+            existing_candidate.city = candidate.city
+            existing_candidate.state = candidate.state
+            existing_candidate.country = candidate.country
+            existing_candidate.current_designation = candidate.current_designation
+            existing_candidate.current_company = candidate.current_company
+            existing_candidate.overall_experience_years = candidate.overall_experience_years
+            existing_candidate.summary = candidate.summary
+            existing_candidate.highest_degree = candidate.highest_degree
+            existing_candidate.highest_degree_name = candidate.highest_degree_name
+            existing_candidate.institution = candidate.institution
+            existing_candidate.graduation_year = candidate.graduation_year
+            existing_candidate.gpa = candidate.gpa
+            existing_candidate.work_experience = candidate.work_experience
+            existing_candidate.skills = candidate.skills
+            existing_candidate.projects = candidate.projects
+            existing_candidate.raw_resume_json = candidate.raw_resume_json
+            existing_candidate.s3_link = s3_link
+            
+            candidate = existing_candidate
+        else:
+            db.add(candidate)
+            
         db.commit()
         db.refresh(candidate)
-        log_tool.log_info("Inserted candidate id=%s email=%s" % (candidate.id, candidate.email))
+        
+        if not existing_candidate:
+            log_tool.log_info("Inserted new candidate id=%s email=%s" % (candidate.id, candidate.email))
+
+        # Store candidate's skills/profile as a vector in Qdrant (always do this to ensure cloud is in sync)
+        try:
+            upsert_candidate_vector(candidate.id, candidate)
+        except Exception as emb_err:
+            log_tool.log_warning("Embedding upsert skipped for candidate id=%s: %s" % (candidate.id, emb_err))
+
         return candidate
-    except IntegrityError:
-        db.rollback()
-        log_tool.log_warning("Duplicate email – candidate already exists: %s" % email)
-        raise
     except SQLAlchemyError as exc:
         db.rollback()
-        log_tool.log_error("DB error inserting candidate: %s" % exc)
+        log_tool.log_error("DB error processing candidate: %s" % exc)
         raise
     finally:
         db.close()
@@ -138,6 +181,13 @@ def save_job_from_jd(parsed_jd: dict, company_name: Optional[str] = None, s3_lin
         db.commit()
         db.refresh(job)
         log_tool.log_info("Inserted job id=%s title=%s" % (job.id, job.title))
+
+        # Store job's skills/description as a vector in Qdrant
+        try:
+            upsert_job_vector(job.id, job)
+        except Exception as emb_err:
+            log_tool.log_warning("Embedding upsert skipped for job id=%s: %s" % (job.id, emb_err))
+
         return job
     except SQLAlchemyError as exc:
         db.rollback()

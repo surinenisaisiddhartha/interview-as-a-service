@@ -103,7 +103,9 @@ class MatchScores(BaseModel):
     """
     required_skills_score: float
     preferred_skills_score: float
+    education_score: float
     experience_score: float
+    location_score: float
     final_match_percentage: float
 
 
@@ -120,6 +122,8 @@ class MatchingResult(BaseModel):
     matched_required_skills: List[str]
     missing_required_skills: List[str]
     matched_preferred_skills: List[str]
+    qualification_status: Optional[str] = None
+    embedding_similarity: Optional[float] = 0.0  # Semantic similarity boost
     match_scores: MatchScores                    # Uses the MatchScores blueprint above
     error: Optional[str] = None                  # If matching failed for some reason
 
@@ -141,10 +145,12 @@ class IndividualRankedMatch(BaseModel):
     candidate_id: int
     candidate_name: str
     experience_years: float
+    embedding_similarity: Optional[float] = 0.0  # Semantic similarity boost
     match_scores: MatchScores
     matched_required_skills: List[str]
     missing_required_skills: List[str]
     matched_preferred_skills: List[str]
+    qualification_status: Optional[str] = None
 
 
 class RankedMatchesResponse(BaseModel):
@@ -169,11 +175,14 @@ class MatchModelResponse(BaseModel):
     job_title: Optional[str] = None
     required_skills_score: float
     preferred_skills_score: float
+    education_score: float
     experience_score: float
+    location_score: float
     final_match_percentage: float
     matched_required_skills: List[str]
     missing_required_skills: List[str]
     matched_preferred_skills: List[str]
+    qualification_status: Optional[str] = None
     created_at: datetime
 
     class Config:

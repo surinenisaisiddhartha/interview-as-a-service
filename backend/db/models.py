@@ -109,15 +109,20 @@ class Match(Base):
     job_title               = Column(String)
 
     # Individual scores (out of their max weight)
-    required_skills_score   = Column(Float)   # max 50
-    preferred_skills_score  = Column(Float)   # max 20
-    experience_score        = Column(Float)   # max 30
+    required_skills_score   = Column(Float)   # max 40
+    preferred_skills_score  = Column(Float)   # max 15
+    education_score         = Column(Float)   # max 15
+    experience_score        = Column(Float)   # max 20
+    location_score          = Column(Float)   # max 10
     final_match_percentage  = Column(Float)   # max 100
 
     # Skill detail (JSONB lists)
     matched_required_skills  = Column(JSONB)
     missing_required_skills  = Column(JSONB)
     matched_preferred_skills = Column(JSONB)
+
+    # Qualification Status
+    qualification_status     = Column(String)  # e.g., "Qualified" or "Disqualified"
 
     created_at              = Column(
         DateTime(timezone=True),
