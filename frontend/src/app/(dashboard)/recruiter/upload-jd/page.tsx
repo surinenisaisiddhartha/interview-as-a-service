@@ -4,16 +4,48 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Briefcase, CheckCircle2, Upload } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { onboardingApi } from '@/services/onboarding.api';
 
 export default function UploadJDPage() {
+    const { data: session } = useSession();
+    const companyId = (session?.user as any)?.companyId as string | undefined;
+    const userId = (session?.user as any)?.id as string | undefined;
+
     const [title, setTitle] = useState('');
     const [jdText, setJdText] = useState('');
     const [department, setDepartment] = useState('Engineering');
     const [saved, setSaved] = useState(false);
+    const [jdFile, setJdFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     const handleSave = async () => {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        if (!companyId || !userId) {
+            setErrorMsg('Missing session context (company/user). Please login again.');
+            return;
+        }
+        if (!jdFile) {
+            setErrorMsg('Please select a JD file to upload.');
+            return;
+        }
+
+        setIsUploading(true);
+        setErrorMsg('');
+
+        try {
+            await onboardingApi.uploadJd(companyId, userId, jdFile, {
+                title,
+                department,
+                jdText,
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (e: any) {
+            setErrorMsg(e?.message || 'Failed to upload JD');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -28,6 +60,11 @@ export default function UploadJDPage() {
                     <Card>
                         <CardHeader title="Role Information" />
                         <CardContent className="space-y-4">
+                            {errorMsg && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+                                    {errorMsg}
+                                </div>
+                            )}
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">Job Title</label>
                                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Senior Frontend Engineer"
@@ -57,10 +94,19 @@ export default function UploadJDPage() {
                                     placeholder="Paste or type the full job description here..."
                                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                             </div>
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-gray-700">JD File</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx"
+                                    onChange={e => setJdFile(e.target.files?.[0] ?? null)}
+                                    className="block w-full text-sm"
+                                />
+                            </div>
                             <div className="flex space-x-3">
-                                <Button onClick={handleSave} disabled={!title || !jdText.trim()}>
+                                <Button onClick={handleSave} disabled={!title || !jdText.trim() || !jdFile || isUploading}>
                                     {saved ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                                    {saved ? 'Saved!' : 'Save JD'}
+                                    {saved ? 'Uploaded!' : isUploading ? 'Uploading...' : 'Upload JD'}
                                 </Button>
                             </div>
                         </CardContent>

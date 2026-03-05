@@ -5,6 +5,7 @@ Wires FastAPI app, registers API routers, and runs startup (DB tables).
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from log import log_tool
 from api.routes import (
@@ -28,6 +29,14 @@ from alembic import command
 
 
 app = FastAPI(title="AI Recruitment API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
