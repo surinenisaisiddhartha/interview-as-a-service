@@ -14,10 +14,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { email, role, companyId } = await req.json();
+        const { email, role, companyId, name, phone } = await req.json();
 
-        if (!email || !role || !companyId) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!email || !role || !companyId || !name || !phone) {
+            return NextResponse.json({ error: 'Missing required fields (email, role, companyId, name, phone)' }, { status: 400 });
         }
 
         // Role hierarchies
@@ -32,24 +32,38 @@ export async function POST(req: Request) {
         // 1. Create in Cognito
         const cognitoSub = await createCognitoUser(email, role);
 
-        // 2. Save in Postgres (id will be set by the backend S3 onboarding flow;
-        //    this route handles direct DB inserts where the caller may supply an id,
-        //    or we fall back to a generated slug for frontend-only creation)
-        const userId = `${role}-${crypto.randomBytes(4).toString('hex')}`;
+        // 2. Delegate to Python Backend to create S3 structure and Postgres Record
+        const backendRes = await fetch(`http://localhost:8000/companies/${companyId}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email,
+                name,
+                role,
+                phone_number: phone,
+                cognito_sub: cognitoSub
+            })
+        });
 
-        const result = await pool.query(
-            `INSERT INTO users (id, cognito_sub, email, role, company_id)
-             VALUES ($1, $2, $3, $4::\"Role\", $5)
-             RETURNING id, cognito_sub AS "cognitoSub", email, role, company_id AS "companyId", created_at AS "createdAt"`,
-            [userId, cognitoSub, email, role, companyId]
-        );
+        if (!backendRes.ok) {
+            const errorText = await backendRes.text();
+            console.error('Backend user creation error:', errorText);
+            // Optionally, we could attempt to rollback Cognito creation here via a new deleteCognitoUser function.
+            // But since createCognitoUser has its own rollback for group assignment failures, it's a start.
+            return NextResponse.json({ error: 'Failed to provision user in the backend.' }, { status: backendRes.status });
+        }
 
-        return NextResponse.json(result.rows[0], { status: 201 });
+        const backendData = await backendRes.json();
+
+        return NextResponse.json({
+            id: backendData.user_id,
+            cognitoSub,
+            email,
+            role,
+            companyId
+        }, { status: 201 });
     } catch (error: any) {
         console.error('Failed to create user:', error);
-        if (error.code === '23505') {
-            return NextResponse.json({ error: 'User with this email already exists in Database.' }, { status: 400 });
-        }
         if (error.name === 'UsernameExistsException') {
             return NextResponse.json({ error: 'User already exists in Cognito.' }, { status: 400 });
         }
@@ -60,18 +74,26 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
-        const companyId = (session as any)?.user?.companyId;
+        const userRole = (session as any)?.user?.role;
+        const url = new URL(req.url);
+        const queryCompanyId = url.searchParams.get('companyId');
 
-        if (!session || !companyId) {
+        let targetCompanyId = (session as any)?.user?.companyId;
+
+        if (userRole === 'superadmin' && queryCompanyId) {
+            targetCompanyId = queryCompanyId;
+        }
+
+        if (!session || !targetCompanyId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const result = await pool.query(
-            `SELECT id, cognito_sub AS "cognitoSub", email, role, company_id AS "companyId", created_at AS "createdAt"
+            `SELECT id, cognito_sub AS "cognitoSub", email, role, company_id AS "companyId", created_at AS "createdAt", name, phone_number
              FROM users
              WHERE company_id = $1
              ORDER BY created_at DESC`,
-            [companyId]
+            [targetCompanyId]
         );
 
         return NextResponse.json(result.rows);

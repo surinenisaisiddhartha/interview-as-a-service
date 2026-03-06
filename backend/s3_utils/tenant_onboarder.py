@@ -120,7 +120,7 @@ class TenantStorageService:
         short_id = generate_short_uuid()
         first_name = name.split(" ")[0]
         name_slug = generate_slug(first_name)
-        user_id = f"{role}-{short_id}"
+        user_id = f"{name_slug}-{role}-{short_id}"
 
         base_path = f"companies/{company_id}/users/{user_id}/"
 
