@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from log import log_tool
 from db.database import SessionLocal
 from db.models import Candidate, Job
-from application.services.embedding_service import upsert_candidate_vector, upsert_job_vector
+from services.embedding_service import upsert_candidate_vector, upsert_job_vector
 
 
 # ---------------------------------------------------------------------------

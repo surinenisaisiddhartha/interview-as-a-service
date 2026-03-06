@@ -3,8 +3,8 @@
 from fastapi import APIRouter, HTTPException
 
 from log import log_tool
-from application.schemas import MatchCandidatesToJobRequest, BatchMatchResponse, RankedMatchesResponse
-from application.services.matching_service import MatchingService
+from schemas import MatchCandidatesToJobRequest, BatchMatchResponse, RankedMatchesResponse
+from services.matching_service import MatchingService
 
 router = APIRouter(tags=["Matching"])
 

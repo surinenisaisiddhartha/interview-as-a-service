@@ -156,7 +156,7 @@ class Matcher:
     # ── INTERNAL: calculate scores ───────────────────────────
     def _calculate_scores(self, candidate: Candidate, job: Job) -> dict:
 
-        from application.services.embedding_service import get_embedding_similarity
+        from services.embedding_service import get_embedding_similarity
 
         embedding_sim = get_embedding_similarity(candidate.id, job.id)
 

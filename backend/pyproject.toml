@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic==1.15.1",
     "black==26.1.0",
-    "fastapi[standard]==0.132.0",
+    "fastapi[standard]==0.116.2",
     "flake8==7.3.0",
     "google-genai>=1.65.0",
     "loguru==0.7.2",
@@ -21,4 +21,5 @@ dependencies = [
     "sqlalchemy==2.0.46",
     "qdrant-client==1.9.1",
     "sentence-transformers==3.0.1",
+    "boto3",
 ]
