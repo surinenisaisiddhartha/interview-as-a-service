@@ -19,7 +19,7 @@ class UserCreateRequest(BaseModel):
     name: str
     role: str
     phone_number: str
-    cognito_sub: str
+    cognito_sub: str | None = None
 
 
 class UserCreateResponse(BaseModel):
@@ -56,13 +56,15 @@ def create_user(
         if existing_by_email:
             raise HTTPException(status_code=400, detail="User with this email already exists")
 
-        existing_by_sub = (
-            db.query(User).filter(User.cognito_sub == body.cognito_sub).first()
-        )
-        if existing_by_sub:
-            raise HTTPException(
-                status_code=400, detail="User with this Cognito subject already exists"
+        # Only check cognito_sub if it is provided
+        if body.cognito_sub is not None:
+            existing_by_sub = (
+                db.query(User).filter(User.cognito_sub == body.cognito_sub).first()
             )
+            if existing_by_sub:
+                raise HTTPException(
+                    status_code=400, detail="User with this Cognito subject already exists"
+                )
 
         # Create S3 folder structure first — the returned user_id IS the PK
         user_id = _storage.onboard_user(

@@ -17,24 +17,32 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
         }
 
-        const result = await pool.query(
-            `INSERT INTO companies (id, name)
-             VALUES ($1, $2)
-             RETURNING id, name, created_at AS "createdAt"`,
-            // NOTE: The company is created via the backend /companies endpoint which generates
-            // the S3 slug-ID. This frontend route is for read operations by superadmin.
-            // For new company creation the caller should use the FastAPI backend endpoint.
-            // If needed here, pass id explicitly: for now we return an error directing to backend.
-            [null, name]
-        );
+        // Proxy the creation request to the Python Backend
+        // This ensures the backend creates the S3 folder structure first, generates the id,
+        // and inserts the row into Postgres natively.
+        const backendRes = await fetch('http://localhost:8000/companies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ company_name: name })
+        });
 
-        return NextResponse.json(result.rows[0], { status: 201 });
+        if (!backendRes.ok) {
+            const errorData = await backendRes.json().catch(() => ({}));
+            console.error('Backend returned error:', errorData);
+            if (backendRes.status === 400 && errorData.detail?.includes('exists')) {
+                return NextResponse.json({ error: 'Company name already exists' }, { status: 400 });
+            }
+            return NextResponse.json({ error: errorData.detail || 'Failed to create company via Backend' }, { status: backendRes.status });
+        }
+
+        const data = await backendRes.json();
+
+        // After backend succeeds, we'll return its response out to the frontend client.
+        // It returns { "company_id": "test-corp-abcd" }. Let's map it to match UI expectations if necessary.
+        return NextResponse.json({ id: data.company_id, name: name }, { status: 201 });
+
     } catch (error: any) {
         console.error('Failed to create company:', error.message);
-        // Unique constraint violation
-        if (error.code === '23505') {
-            return NextResponse.json({ error: 'Company name already exists' }, { status: 400 });
-        }
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

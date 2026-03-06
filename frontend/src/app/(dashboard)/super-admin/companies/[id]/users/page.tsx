@@ -6,12 +6,12 @@ import { DataTable } from '@/components/ui/datatable';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { FormInput } from '@/components/forms/form-input';
-import { UserPlus, Settings, Trash2, Shield, Mail, Eye } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { UserPlus, Settings, Trash2, Shield, Mail, Eye, ChevronLeft } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function AdminUsers() {
-    const { data: session } = useSession();
-    const userCompanyId = (session?.user as any)?.companyId;
+export default function SuperAdminCompanyUsers() {
+    const { id: userCompanyId } = useParams() as { id: string };
+    const router = useRouter();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,7 +19,7 @@ export default function AdminUsers() {
     const [users, setUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const [newUserData, setNewUserData] = useState({ name: '', email: '', phone: '' });
+    const [newUserData, setNewUserData] = useState({ name: '', email: '', phone: '', role: 'company_admin' });
 
     useEffect(() => {
         if (userCompanyId) {
@@ -30,7 +30,7 @@ export default function AdminUsers() {
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('/api/users');
+            const res = await fetch(`/api/users?companyId=${userCompanyId}`);
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -42,7 +42,7 @@ export default function AdminUsers() {
         }
     };
 
-    const handleCreateRecruiter = async (e: React.FormEvent) => {
+    const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         setErrorMsg('');
@@ -55,7 +55,7 @@ export default function AdminUsers() {
                     email: newUserData.email,
                     name: newUserData.name,
                     phone: newUserData.phone,
-                    role: 'recruiter',
+                    role: newUserData.role,
                     companyId: userCompanyId
                 })
             });
@@ -63,12 +63,12 @@ export default function AdminUsers() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to create recruiter');
+                throw new Error(data.error || 'Failed to create user');
             }
 
             // Success
             setIsModalOpen(false);
-            setNewUserData({ name: '', email: '', phone: '' });
+            setNewUserData({ name: '', email: '', phone: '', role: 'company_admin' });
             fetchUsers();
 
         } catch (error: any) {
@@ -118,13 +118,17 @@ export default function AdminUsers() {
 
     return (
         <div className="space-y-6">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/super-admin/companies')}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Back to Companies
+            </Button>
+
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Recruiter Management</h1>
-                    <p className="text-gray-500">Create accounts for your recruiters and monitor their platform activity.</p>
+                    <h1 className="text-2xl font-bold text-gray-900">Company Users Management</h1>
+                    <p className="text-gray-500">Create company admins and recruiters for this specific organization.</p>
                 </div>
                 <Button onClick={() => setIsModalOpen(true)}>
-                    <UserPlus className="w-4 h-4 mr-2" /> Invite Recruiter
+                    <UserPlus className="w-4 h-4 mr-2" /> Invite User
                 </Button>
             </div>
 
@@ -135,7 +139,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="p-4 bg-white border border-gray-100 flex items-center space-x-4 rounded-xl">
                     <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Eye className="w-6 h-6" /></div>
-                    <div><p className="text-xs font-bold text-gray-500 uppercase">Company ID</p><p className="text-xs break-all text-gray-500">{userCompanyId || 'Loading...'}</p></div>
+                    <div><p className="text-xs font-bold text-gray-500 uppercase">Company ID</p><p className="text-xs break-all text-gray-500">{userCompanyId}</p></div>
                 </div>
                 <div className="p-4 bg-white border border-gray-100 flex items-center space-x-4 rounded-xl">
                     <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Mail className="w-6 h-6" /></div>
@@ -148,11 +152,11 @@ export default function AdminUsers() {
                 <DataTable columns={columns} data={users} />
             </Card>
 
-            <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)} title="Invite New Recruiter">
-                <form className="space-y-4" onSubmit={handleCreateRecruiter}>
+            <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)} title="Invite New User">
+                <form className="space-y-4" onSubmit={handleCreateUser}>
                     <div className="p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm flex items-start space-x-3">
                         <Shield className="w-5 h-5 shrink-0" />
-                        <p>New recruiters will be automatically assigned to your company and granted access to active JDs and Candidates.</p>
+                        <p>This user will be securely assigned to Company ID <strong>{userCompanyId}</strong> and locked to its data scope.</p>
                     </div>
 
                     {errorMsg && (
@@ -174,7 +178,7 @@ export default function AdminUsers() {
                         label="Work Email"
                         type="email"
                         required
-                        placeholder="recruiter@yourcompany.com"
+                        placeholder="user@company.com"
                         value={newUserData.email}
                         onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
                     />
@@ -188,8 +192,20 @@ export default function AdminUsers() {
                         onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
                     />
 
+                    <div className="space-y-1">
+                        <label className="text-sm font-semibold text-gray-700">Role</label>
+                        <select
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
+                            value={newUserData.role}
+                            onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
+                        >
+                            <option value="company_admin">Company Admin</option>
+                            <option value="recruiter">Recruiter</option>
+                        </select>
+                    </div>
+
                     <div className="text-xs text-gray-500 mt-1 mb-4">
-                        An email will be sent by AWS Cognito to this address with a temporary password to login as a Recruiter.
+                        An email will be sent by AWS Cognito to this address with a temporary password to login.
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4 border-t">

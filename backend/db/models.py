@@ -162,7 +162,7 @@ class User(Base):
 
     # id is the S3 slug-ID (e.g. "recruiter-ab12ef34") — set explicitly on insert
     id = Column(String, primary_key=True)
-    cognito_sub = Column(String, nullable=False, unique=True)
+    cognito_sub = Column(String, nullable=True, unique=True)
     email = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
