@@ -33,8 +33,13 @@ export default function SuperAdminCompanies() {
     const fetchCompanies = async () => {
         setIsLoading(true);
         try {
-            const data = await companiesApi.getCompanies();
-            setCompanies(data as any[]);
+            const res = await fetch('/api/companies');
+            if (res.ok) {
+                const data = await res.json();
+                setCompanies(data);
+            } else {
+                console.error('Failed to fetch companies:', await res.text());
+            }
         } catch (error) {
             console.error('Failed to fetch companies', error);
         } finally {
@@ -48,7 +53,17 @@ export default function SuperAdminCompanies() {
         setErrorMsg('');
 
         try {
-            await onboardingApi.onboardCompany(formData.companyName);
+            const res = await fetch('/api/companies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: formData.companyName })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to create company');
+            }
 
             // Success
             setIsModalOpen(false);
@@ -74,10 +89,22 @@ export default function SuperAdminCompanies() {
             )
         },
         {
-            header: '', accessor: () => (
-                <button className="text-gray-400 hover:text-gray-600">
-                    <MoreHorizontal className="w-5 h-5" />
-                </button>
+            header: '', accessor: (c: any) => (
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/super-admin/companies/${c.id}/users`);
+                        }}
+                    >
+                        Users
+                    </Button>
+                    <button className="text-gray-400 hover:text-gray-600">
+                        <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                </div>
             )
         },
     ];
