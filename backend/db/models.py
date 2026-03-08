@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import enum
 
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Index, ForeignKey, UniqueConstraint, Enum, text
+    Column, Integer, String, Float, DateTime, Index, ForeignKey, UniqueConstraint, Enum, text, BigInteger, Boolean
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
@@ -181,3 +181,52 @@ class User(Base):
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email} role={self.role}>"
+
+
+class InterviewCall(Base):
+    __tablename__ = "interview_calls"
+
+    id                      = Column(Integer, primary_key=True)
+
+    call_id                 = Column(String, unique=True, nullable=False, index=True)
+    agent_id                = Column(String)
+
+    call_status             = Column(String)
+    direction               = Column(String)
+
+    candidate_id            = Column(Integer, ForeignKey("candidates.id", ondelete="SET NULL"), nullable=True, index=True)
+    job_id                  = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    from_number             = Column(String)
+    to_number               = Column(String)
+
+    start_timestamp         = Column(BigInteger)
+    duration_ms             = Column(Integer)
+
+    transcript              = Column(String)
+    recording_url           = Column(String)
+    public_log_url          = Column(String)
+
+    call_summary            = Column(String)
+    user_sentiment          = Column(String)
+
+    interview_score         = Column(Float)
+    technical_assessment    = Column(String)
+    communication_quality   = Column(String)
+    strengths               = Column(String)
+    weaknesses              = Column(String)
+    recommend_hire          = Column(Boolean)
+    interview_outcome       = Column(String)
+
+    combined_cost           = Column(Float)
+
+    metadata_json           = Column(JSONB)  # Renamed because metadata is a reserved attribute on SQLAlchemy models
+
+    created_at              = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self):
+        return f"<InterviewCall call_id={self.call_id} status={self.call_status}>"

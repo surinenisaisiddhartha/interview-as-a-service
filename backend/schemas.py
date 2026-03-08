@@ -264,3 +264,116 @@ class ProcessResumeRequest(BaseModel):
 
 class BulkProcessResumeRequest(BaseModel):
     candidates: List[ProcessResumeRequest]
+
+
+# ── RETELL POST-CALL ANALYSIS CONFIG ─────────────────────────────────────────
+
+RETELL_POST_CALL_ANALYSIS_CONFIG = [
+    {
+        "name": "call_summary",
+        "type": "string",
+        "description": "Provide a concise 3–5 sentence summary of the interview conversation including candidate background, key skills mentioned, and overall interview performance."
+    },
+    {
+        "name": "interview_score",
+        "type": "number",
+        "description": "Overall evaluation score for the candidate from 1 to 10. Consider technical knowledge, clarity of answers, confidence, and relevance of experience. 10 indicates an exceptional candidate."
+    },
+    {
+        "name": "technical_assessment",
+        "type": "string",
+        "description": "Evaluate the candidate's technical knowledge based on their answers. Mention technologies discussed, depth of understanding, and whether their knowledge appears practical or theoretical."
+    },
+    {
+        "name": "communication_quality",
+        "type": "string",
+        "description": "Assess the candidate’s communication skills including clarity, confidence, articulation, and ability to explain technical concepts clearly."
+    },
+    {
+        "name": "strengths",
+        "type": "string",
+        "description": "List the candidate’s strongest qualities observed during the interview such as technical expertise, problem-solving ability, relevant project experience, or strong communication."
+    },
+    {
+        "name": "weaknesses",
+        "type": "string",
+        "description": "Identify skill gaps, unclear responses, lack of experience in required areas, or any weaknesses noticed during the interview."
+    },
+    {
+        "name": "recommend_hire",
+        "type": "boolean",
+        "description": "Return true if the candidate demonstrated sufficient skills and communication ability to proceed in the hiring process, otherwise return false."
+    },
+    {
+        "name": "interview_outcome",
+        "type": "string",
+        "description": "Final hiring recommendation such as 'Strong Hire', 'Hire', 'Hold for Further Evaluation', or 'Reject' based on the overall interview performance."
+    }
+]
+
+
+class CreateCallPayload(BaseModel):
+    """
+    Payload to trigger a single phone call.
+    """
+    from_number: Optional[str] = None
+    to_number: Optional[str] = None
+    agent_id: Optional[str] = None
+    candidate_id: Optional[str] = None
+    job_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = {}
+
+
+class CreateBatchCallPayload(BaseModel):
+    """
+    Payload to trigger multiple phone calls at once for a single job.
+    """
+    job_id: str
+    candidate_ids: List[str]
+    from_number: Optional[str] = None
+    agent_id: Optional[str] = None
+
+
+class LatencyMetrics(BaseModel):
+    p50: Optional[float] = None
+    p90: Optional[float] = None
+    p95: Optional[float] = None
+    p99: Optional[float] = None
+
+class CallLatency(BaseModel):
+    e2e: Optional[LatencyMetrics] = None
+    asr: Optional[LatencyMetrics] = None
+    llm: Optional[LatencyMetrics] = None
+
+class CallAnalysis(BaseModel):
+    call_summary: Optional[str] = None
+    user_sentiment: Optional[str] = None
+    call_successful: Optional[bool] = None
+    call_outcome: Optional[str] = None
+    custom_analysis_data: Optional[Dict[str, Any]] = None
+
+class CallCost(BaseModel):
+    combined_cost: Optional[float] = None
+
+class CallResponse(BaseModel):
+    """
+    Detailed response containing status, transcript, recording, 
+    and advanced post-call analysis/metrics.
+    """
+    call_id: str
+    agent_id: str
+    call_status: str
+    start_timestamp: Optional[int] = None
+    duration_ms: Optional[int] = None
+    call_type: Optional[str] = None
+    to_number: Optional[str] = None
+    from_number: Optional[str] = None
+    direction: Optional[str] = None
+    disconnection_reason: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    transcript: Optional[str] = None
+    recording_url: Optional[str] = None
+    public_log_url: Optional[str] = None
+    call_analysis: Optional[CallAnalysis] = None
+    call_cost: Optional[CallCost] = None
+    latency: Optional[CallLatency] = None
