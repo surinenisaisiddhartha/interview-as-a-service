@@ -34,10 +34,7 @@ app = FastAPI(title="AI Recruitment API")
 def run_migrations():
     """Ensure database tables are up to date via Alembic on startup."""
     try:
-        # 1. Create tables if they don't exist (Base.metadata fallback)
-        Base.metadata.create_all(bind=engine)
-        
-        # 2. Run Alembic upgrade head programmatically
+        # 1. Run Alembic upgrade head programmatically (replaces Base.metadata.create_all)
         alembic_cfg = Config("alembic.ini")
         command.upgrade(alembic_cfg, "head")
         
