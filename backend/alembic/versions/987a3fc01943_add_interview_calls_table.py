@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '987a3fc01943'
-down_revision: Union[str, Sequence[str], None] = '0002'
+down_revision: Union[str, Sequence[str], None] = 'bfbb10d926f4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -27,8 +27,8 @@ def upgrade() -> None:
     sa.Column('agent_id', sa.String(), nullable=True),
     sa.Column('call_status', sa.String(), nullable=True),
     sa.Column('direction', sa.String(), nullable=True),
-    sa.Column('candidate_id', sa.Integer(), sa.ForeignKey('candidates.id', ondelete='SET NULL'), nullable=True),
-    sa.Column('job_id', sa.Integer(), sa.ForeignKey('jobs.id', ondelete='SET NULL'), nullable=True),
+    sa.Column('candidate_id', sa.String(), sa.ForeignKey('candidates.s3_candidate_id', ondelete='SET NULL'), nullable=True),
+    sa.Column('job_id', sa.String(), sa.ForeignKey('jobs.s3_job_id', ondelete='SET NULL'), nullable=True),
     sa.Column('from_number', sa.String(), nullable=True),
     sa.Column('to_number', sa.String(), nullable=True),
     sa.Column('start_timestamp', sa.BigInteger(), nullable=True),
