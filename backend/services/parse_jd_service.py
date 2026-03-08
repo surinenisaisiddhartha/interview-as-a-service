@@ -20,7 +20,7 @@ class ParseJDService:
         self._jd_parser = JDParser()
         self._matcher = Matcher()
 
-    def run(self, file_bytes: bytes, filename: str, company_name: Optional[str] = None, s3_link: Optional[str] = None) -> dict:
+    def run(self, file_bytes: bytes, filename: str, company_name: Optional[str] = None, s3_link: Optional[str] = None, s3_job_id: Optional[str] = None) -> dict:
         """
         Parse JD from file content, save job to DB, and match against all candidates.
 
@@ -46,16 +46,16 @@ class ParseJDService:
 
         job = None
         try:
-            job = save_job_from_jd(result, company_name=company_name, s3_link=s3_link)
-            log_tool.log_info("💼 JD saved to DB: job id=%s company=%s" % (job.id, company_name))
+            job = save_job_from_jd(result, company_name=company_name, s3_link=s3_link, s3_job_id=s3_job_id)
+            log_tool.log_info("💼 JD saved to DB: job id=%s company=%s" % (job.s3_job_id, company_name))
         except Exception as insert_error:
             log_tool.log_warning("⚠️ DB insert skipped (duplicate or error): %s" % insert_error)
 
         if job:
             try:
-                matches = self._matcher.match_all_candidates_for_job(job.id)
+                matches = self._matcher.match_all_candidates_for_job(job.s3_job_id)
                 log_tool.log_info(
-                    "📊 Auto-matched job id=%s against %d candidate(s)." % (job.id, len(matches))
+                    "📊 Auto-matched job id=%s against %d candidate(s)." % (job.s3_job_id, len(matches))
                 )
             except Exception as match_error:
                 log_tool.log_warning("⚠️ Auto-match skipped: %s" % match_error)

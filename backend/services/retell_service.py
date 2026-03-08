@@ -85,7 +85,7 @@ class RetellService:
             logger.error("Error creating Retell LLM dynamically: %s", e)
             raise
 
-    def update_llm_dynamic(self, llm_id: str, candidate_id: int, job_id: int, db: Session):
+    def update_llm_dynamic(self, llm_id: str, candidate_id: str, job_id: str, db: Session):
         if not self.client:
             raise ValueError("RETELL_API_KEY is not set in .env")
             

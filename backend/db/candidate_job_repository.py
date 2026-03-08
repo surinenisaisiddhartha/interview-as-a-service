@@ -23,7 +23,12 @@ from services.embedding_service import upsert_candidate_vector, upsert_job_vecto
 # ---------------------------------------------------------------------------
 
 
-def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = None) -> Candidate:
+def save_candidate_from_resume(
+    parsed_resume: dict,
+    s3_link: Optional[str] = None,
+    s3_candidate_id: Optional[str] = None,
+    s3_job_id: Optional[str] = None
+) -> Candidate:
     """
     Create a Candidate row from parsed resume JSON and persist it.
 
@@ -78,6 +83,8 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
         projects=candidate_data.get("projects"),
         raw_resume_json=parsed_resume,
         s3_link=s3_link,
+        s3_candidate_id=s3_candidate_id,
+        s3_job_id=s3_job_id,
     )
 
     db = SessionLocal()
@@ -86,7 +93,7 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
         existing_candidate = db.query(Candidate).filter(Candidate.email == email).first()
         
         if existing_candidate:
-            log_tool.log_info("Candidate with email %s already exists. Updating record id=%s" % (email, existing_candidate.id))
+            log_tool.log_info("Candidate with email %s already exists. Updating record id=%s" % (email, existing_candidate.s3_candidate_id))
             # Update fields
             existing_candidate.full_name = candidate.full_name
             existing_candidate.phone_number = candidate.phone_number
@@ -109,6 +116,11 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
             existing_candidate.raw_resume_json = candidate.raw_resume_json
             existing_candidate.s3_link = s3_link
             
+            if s3_candidate_id:
+                existing_candidate.s3_candidate_id = s3_candidate_id
+            if s3_job_id:
+                existing_candidate.s3_job_id = s3_job_id
+                
             candidate = existing_candidate
         else:
             db.add(candidate)
@@ -117,13 +129,13 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
         db.refresh(candidate)
         
         if not existing_candidate:
-            log_tool.log_info("Inserted new candidate id=%s email=%s" % (candidate.id, candidate.email))
+            log_tool.log_info("Inserted new candidate id=%s email=%s" % (candidate.s3_candidate_id, candidate.email))
 
         # Store candidate's skills/profile as a vector in Qdrant (always do this to ensure cloud is in sync)
         try:
-            upsert_candidate_vector(candidate.id, candidate)
+            upsert_candidate_vector(candidate.s3_candidate_id, candidate)
         except Exception as emb_err:
-            log_tool.log_warning("Embedding upsert skipped for candidate id=%s: %s" % (candidate.id, emb_err))
+            log_tool.log_warning("Embedding upsert skipped for candidate id=%s: %s" % (candidate.s3_candidate_id, emb_err))
 
         return candidate
     except SQLAlchemyError as exc:
@@ -139,7 +151,12 @@ def save_candidate_from_resume(parsed_resume: dict, s3_link: Optional[str] = Non
 # ---------------------------------------------------------------------------
 
 
-def save_job_from_jd(parsed_jd: dict, company_name: Optional[str] = None, s3_link: Optional[str] = None) -> Job:
+def save_job_from_jd(
+    parsed_jd: dict, 
+    company_name: Optional[str] = None, 
+    s3_link: Optional[str] = None,
+    s3_job_id: Optional[str] = None
+) -> Job:
     """
     Create a Job row from parsed JD JSON and persist it.
 
@@ -162,6 +179,7 @@ def save_job_from_jd(parsed_jd: dict, company_name: Optional[str] = None, s3_lin
         title = "Untitled Job"
 
     job = Job(
+        s3_job_id=s3_job_id,
         title=title,
         company_name=company_name,
         min_required_experience_years=job_data.get("min_required_experience_years"),
@@ -180,13 +198,13 @@ def save_job_from_jd(parsed_jd: dict, company_name: Optional[str] = None, s3_lin
         db.add(job)
         db.commit()
         db.refresh(job)
-        log_tool.log_info("Inserted job id=%s title=%s" % (job.id, job.title))
+        log_tool.log_info("Inserted job id=%s title=%s" % (job.s3_job_id, job.title))
 
         # Store job's skills/description as a vector in Qdrant
         try:
-            upsert_job_vector(job.id, job)
+            upsert_job_vector(job.s3_job_id, job)
         except Exception as emb_err:
-            log_tool.log_warning("Embedding upsert skipped for job id=%s: %s" % (job.id, emb_err))
+            log_tool.log_warning("Embedding upsert skipped for job id=%s: %s" % (job.s3_job_id, emb_err))
 
         return job
     except SQLAlchemyError as exc:

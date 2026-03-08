@@ -16,12 +16,12 @@ async def parse_resume(
     s3_link: str = Form(None),
 ):
     """
-    Parse a resume file (PDF or TXT). Saves candidate to PostgreSQL.
+    Parse a resume file (PDF, TXT, DOCX). Saves candidate to PostgreSQL.
     Matching is triggered when a JD is uploaded (job vs all candidates).
     """
-    if not file.filename or not file.filename.lower().endswith((".pdf", ".txt")):
+    if not file.filename or not file.filename.lower().endswith((".pdf", ".txt", ".doc", ".docx")):
         raise HTTPException(
-            status_code=400, detail="Invalid file type. Upload .pdf or .txt"
+            status_code=400, detail="Invalid file type. Upload .pdf, .txt, .doc, or .docx"
         )
 
     try:

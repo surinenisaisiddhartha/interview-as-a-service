@@ -57,14 +57,15 @@ def run_migrations():
 
 # ── Register API routers ─────────────────────────────────────────────────────
 app.include_router(health_router)
-app.include_router(resumes_router)
-app.include_router(jobs_router)
-app.include_router(matching_router)
-app.include_router(retell_router)
 app.include_router(companies_router)
 app.include_router(users_router)
 app.include_router(jd_upload_router)
 app.include_router(resume_upload_router)
+app.include_router(matching_router)
+app.include_router(retell_router)
+app.include_router(resumes_router)
+app.include_router(jobs_router)
+
 
 
 

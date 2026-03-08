@@ -13,7 +13,7 @@ from db.database import Base
 class Candidate(Base):
     __tablename__ = "candidates"
 
-    id                      = Column(Integer, primary_key=True)
+    s3_candidate_id         = Column(String, primary_key=True)
     full_name               = Column(String, nullable=False)
     email                   = Column(String, unique=True, nullable=False, index=True)
     phone_number            = Column(String)
@@ -44,6 +44,7 @@ class Candidate(Base):
     raw_resume_json         = Column(JSONB)   # full original parsed JSON
 
     s3_link                 = Column(String)  # S3 URL for the candidate's resume document
+    s3_job_id               = Column(String, index=True)
 
     created_at              = Column(
         DateTime(timezone=True),
@@ -60,13 +61,13 @@ class Candidate(Base):
     )
 
     def __repr__(self):
-        return f"<Candidate id={self.id} email={self.email}>"
+        return f"<Candidate s3_id={self.s3_candidate_id} email={self.email}>"
 
 
 class Job(Base):
     __tablename__ = "jobs"
 
-    id                              = Column(Integer, primary_key=True)
+    s3_job_id                       = Column(String, primary_key=True)
     title                           = Column(String, nullable=False)
     company_name                    = Column(String)         
     min_required_experience_years   = Column(Float)
@@ -95,15 +96,15 @@ class Job(Base):
     )
 
     def __repr__(self):
-        return f"<Job id={self.id} title={self.title}>"
+        return f"<Job s3_id={self.s3_job_id} title={self.title}>"
 
 
 class Match(Base):
     __tablename__ = "matches"
 
     id                      = Column(Integer, primary_key=True)
-    candidate_id            = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True)
-    job_id                  = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    candidate_id            = Column(String, ForeignKey("candidates.s3_candidate_id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id                  = Column(String, ForeignKey("jobs.s3_job_id", ondelete="CASCADE"), nullable=False, index=True)
 
     candidate_name          = Column(String)
     job_title               = Column(String)

@@ -27,6 +27,7 @@ class JDIngestService:
         filename: str,
         company_name: Optional[str] = None,
         s3_link: Optional[str] = None,
+        s3_job_id: Optional[str] = None,
     ) -> dict:
         """
         Parse JD from file content and save a Job row to the database.
@@ -52,8 +53,8 @@ class JDIngestService:
             raise ValueError("JD parsing failed or returned empty data")
 
         try:
-            job = save_job_from_jd(result, company_name=company_name, s3_link=s3_link)
-            log_tool.log_info("💼 JD ingested to DB: job id=%s company=%s" % (job.id, company_name))
+            job = save_job_from_jd(result, company_name=company_name, s3_link=s3_link, s3_job_id=s3_job_id)
+            log_tool.log_info("💼 JD ingested to DB: job id=%s company=%s" % (job.s3_job_id, company_name))
         except Exception as insert_error:
             # We intentionally do not re-raise here: parsing succeeded, but DB insert may be a duplicate, etc.
             log_tool.log_warning("⚠️ JD ingest DB insert skipped (duplicate or error): %s" % insert_error)

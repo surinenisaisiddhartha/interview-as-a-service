@@ -59,6 +59,7 @@ async def upload_jd(
             file.filename,
             company_name=company_id,
             s3_link=s3_link,
+            s3_job_id=jd_id,
         )
 
         return {

@@ -22,17 +22,21 @@ class Matcher:
         self.gemini = GeminiClient()
 
     # ── AUTO: new candidate vs ALL jobs ──────────────────────────────────────
-    def match_all_jobs_for_candidate(self, candidate_id: int) -> list:
+    def match_all_jobs_for_candidate(self, candidate_id: str) -> list:
         db = SessionLocal()
         try:
-            candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+            candidate = db.query(Candidate).filter(Candidate.s3_candidate_id == candidate_id).first()
             if not candidate:
                 log_tool.log_warning("Auto-match skipped: candidate id=%s not found." % candidate_id)
                 return []
 
-            jobs = db.query(Job).all()
+            if candidate.s3_job_id:
+                jobs = db.query(Job).filter(Job.s3_job_id == candidate.s3_job_id).all()
+            else:
+                jobs = []
+
             if not jobs:
-                log_tool.log_info("Auto-match: no jobs in DB yet for candidate id=%s." % candidate_id)
+                log_tool.log_info("Auto-match: no matching job in DB yet for candidate id=%s (mapped to job=%s)." % (candidate_id, candidate.s3_job_id))
                 return []
 
             results = []
@@ -43,7 +47,7 @@ class Matcher:
 
                 log_tool.log_info(
                     "Auto-matched candidate=%s vs job=%s → %.2f%%"
-                    % (candidate.id, job.id, match_result["match_scores"]["final_match_percentage"])
+                    % (candidate.s3_candidate_id, job.s3_job_id, match_result["match_scores"]["final_match_percentage"])
                 )
 
             db.commit()
@@ -57,18 +61,18 @@ class Matcher:
             db.close()
 
     # ── AUTO: new job vs ALL candidates ──────────────────────────────────────
-    def match_all_candidates_for_job(self, job_id: int) -> list:
+    def match_all_candidates_for_job(self, job_id: str) -> list:
 
         db = SessionLocal()
 
         try:
-            job = db.query(Job).filter(Job.id == job_id).first()
+            job = db.query(Job).filter(Job.s3_job_id == job_id).first()
 
             if not job:
                 log_tool.log_warning("Auto-match skipped: job id=%s not found." % job_id)
                 return []
 
-            candidates = db.query(Candidate).all()
+            candidates = db.query(Candidate).filter(Candidate.s3_job_id == job_id).all()
 
             if not candidates:
                 log_tool.log_info("Auto-match: no candidates in DB yet for job id=%s." % job_id)
@@ -79,8 +83,8 @@ class Matcher:
             for candidate in candidates:
                 match_result = self._calculate_scores(candidate, job)
 
-                match_result["candidate_id"] = candidate.id
-                match_result["job_id"] = job.id
+                match_result["candidate_id"] = candidate.s3_candidate_id
+                match_result["job_id"] = job.s3_job_id
 
                 self._save_match(db, candidate, job, match_result)
 
@@ -88,7 +92,7 @@ class Matcher:
 
                 log_tool.log_info(
                     "Auto-matched candidate=%s vs job=%s → %.2f%%"
-                    % (candidate.id, job.id, match_result["match_scores"]["final_match_percentage"])
+                    % (candidate.s3_candidate_id, job.s3_job_id, match_result["match_scores"]["final_match_percentage"])
                 )
 
             db.commit()
@@ -111,7 +115,7 @@ class Matcher:
 
         try:
 
-            job = db.query(Job).filter(Job.id == job_id).first()
+            job = db.query(Job).filter(Job.s3_job_id == job_id).first()
 
             if not job:
                 return [{"error": f"Job with id={job_id} not found in database."}]
@@ -120,7 +124,7 @@ class Matcher:
 
             for candidate_id in candidate_ids:
 
-                candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+                candidate = db.query(Candidate).filter(Candidate.s3_candidate_id == candidate_id).first()
 
                 if not candidate:
                     results.append({"error": f"Candidate with id={candidate_id} not found.", "candidate_id": candidate_id})
@@ -128,8 +132,8 @@ class Matcher:
 
                 match_result = self._calculate_scores(candidate, job)
 
-                match_result["candidate_id"] = candidate.id
-                match_result["job_id"] = job.id
+                match_result["candidate_id"] = candidate.s3_candidate_id
+                match_result["job_id"] = job.s3_job_id
 
                 self._save_match(db, candidate, job, match_result)
 
@@ -137,7 +141,7 @@ class Matcher:
 
                 log_tool.log_info(
                     "Matched candidate=%s vs job=%s → %.2f%%"
-                    % (candidate.id, job.id, match_result["match_scores"]["final_match_percentage"])
+                    % (candidate.s3_candidate_id, job.s3_job_id, match_result["match_scores"]["final_match_percentage"])
                 )
 
             db.commit()
@@ -156,28 +160,51 @@ class Matcher:
     # ── INTERNAL: calculate scores ───────────────────────────
     def _calculate_scores(self, candidate: Candidate, job: Job) -> dict:
 
-        from services.embedding_service import get_embedding_similarity
+        from services.embedding_service import get_category_similarities
 
-        embedding_sim = get_embedding_similarity(candidate.id, job.id)
+        sims = get_category_similarities(candidate.s3_candidate_id, job.s3_job_id)
 
-        req_score = embedding_sim * WEIGHT_REQUIRED_SKILLS
-        pref_score = embedding_sim * WEIGHT_PREFERRED_SKILLS
-        edu_score = embedding_sim * WEIGHT_EDUCATION
+        req_sim = sims.get("required_skills_sim", 0.0)
+        pref_sim = sims.get("preferred_skills_sim", 0.0)
+        edu_sim = sims.get("education_sim", 0.0)
+
+        embedding_sim = (req_sim + pref_sim + edu_sim) / 3.0
+
+        # If the job has no preferred skills defined, shift the 20% weight to required skills!
+        if not job.preferred_skills or len(job.preferred_skills) == 0:
+            req_score = req_sim * (WEIGHT_REQUIRED_SKILLS + WEIGHT_PREFERRED_SKILLS)
+            pref_score = 0.0
+        else:
+            req_score = req_sim * WEIGHT_REQUIRED_SKILLS
+            pref_score = pref_sim * WEIGHT_PREFERRED_SKILLS
+
+        edu_score = edu_sim * WEIGHT_EDUCATION
 
         # ── Experience Match
         exp_score = 0.0
         cand_exp = candidate.overall_experience_years or 0
         job_min = job.min_required_experience_years or 0
+        job_max = getattr(job, "max_required_experience_years", 0) or 0
 
-        # Qualification: only minimum experience is a requirement; 
-        # higher experience (e.g. 8+ for a 2-6 range) always qualifies.
-        if job_min > 0:
-            if cand_exp >= job_min:
-                exp_score = WEIGHT_EXPERIENCE
+        # Score Calculation: 
+        # 1. Below Minimum = 0%
+        # 2. Equal or Above Maximum = 100%
+        # 3. Between Min and Max = Fraction of max
+
+        if job_min > 0 and cand_exp < job_min:
+            exp_score = 0.0
+        elif job_max > 0:
+            if cand_exp >= job_max:
+                exp_score = float(WEIGHT_EXPERIENCE)
             else:
-                exp_score = 0.0
+                exp_score = float(cand_exp / float(job_max)) * float(WEIGHT_EXPERIENCE)
+        elif job_min > 0:
+            if cand_exp >= job_min:
+                exp_score = float(WEIGHT_EXPERIENCE)
+            else:
+                exp_score = 0.0 # Under min is 0 based on above check
         else:
-            exp_score = WEIGHT_EXPERIENCE
+            exp_score = float(WEIGHT_EXPERIENCE)
 
         # ── Location Match
         loc_score = 0.0
@@ -190,11 +217,9 @@ class Matcher:
         ]
 
         if not job_loc or any(job_loc in c_loc or c_loc in job_loc for c_loc in cand_locs if c_loc):
-            loc_score = WEIGHT_LOCATION
+            loc_score = float(WEIGHT_LOCATION)
 
-        # Final match percentage now excludes experience percent as per user request.
-        # It also no longer forces 0.0 if experience is missing.
-        final = round(req_score + pref_score + edu_score + loc_score, 2)
+        final = round(req_score + pref_score + edu_score + loc_score + exp_score, 2)
 
         # ── FIX 1: SKILL EXTRACTION IMPROVED ──────────────────
         candidate_skills_list = []
@@ -241,8 +266,11 @@ class Matcher:
             if skill.lower() in candidate_text:
                 matched_preferred.append(skill)
 
-        # Determine qualification status based on whether they met the minimum experience
-        qualification_status = "Qualified" if exp_score > 0 else "Disqualified"
+        # Determine qualification status based strictly on whether they met the minimum experience
+        if job_min > 0:
+            qualification_status = "Qualified" if cand_exp >= job_min else "Disqualified"
+        else:
+            qualification_status = "Qualified"
 
         return {
             "candidate_name": candidate.full_name or "Unknown",
@@ -269,7 +297,7 @@ class Matcher:
 
         existing = (
             db.query(Match)
-            .filter(Match.candidate_id == candidate.id, Match.job_id == job.id)
+            .filter(Match.candidate_id == candidate.s3_candidate_id, Match.job_id == job.s3_job_id)
             .first()
         )
 
@@ -294,8 +322,8 @@ class Matcher:
 
             match_row = Match(
 
-                candidate_id=candidate.id,
-                job_id=job.id,
+                candidate_id=candidate.s3_candidate_id,
+                job_id=job.s3_job_id,
 
                 candidate_name=match_result["candidate_name"],
                 job_title=match_result["job_title"],

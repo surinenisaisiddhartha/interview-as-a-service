@@ -4,7 +4,7 @@ from services.matching_service import MatchingService
 from services.embedding_service import (
     upsert_candidate_vector,
     upsert_job_vector,
-    get_embedding_similarity,
+    get_category_similarities,
 )
 
 __all__ = [
@@ -13,5 +13,5 @@ __all__ = [
     "MatchingService",
     "upsert_candidate_vector",
     "upsert_job_vector",
-    "get_embedding_similarity",
+    "get_category_similarities",
 ]

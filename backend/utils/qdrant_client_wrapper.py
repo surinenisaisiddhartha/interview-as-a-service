@@ -28,8 +28,8 @@ QDRANT_URL     = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
 
 VECTOR_SIZE = 384        # all-MiniLM-L6-v2 output dimension
-COLLECTION_CANDIDATES = "candidates"
-COLLECTION_JOBS = "jobs"
+COLLECTION_CANDIDATES = "candidates_v2"
+COLLECTION_JOBS = "jobs_v2"
 
 _client: QdrantClient | None = None
 
@@ -57,11 +57,24 @@ def _ensure_collections(client: QdrantClient) -> None:
 
     for name in (COLLECTION_CANDIDATES, COLLECTION_JOBS):
         if name not in existing:
+            if name == COLLECTION_CANDIDATES:
+                vectors_config = {
+                    "skills": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                    "education": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                }
+            else:
+                vectors_config = {
+                    "required_skills": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                    "preferred_skills": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                    "education": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                    "role": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                }
+            
             client.create_collection(
                 collection_name=name,
-                vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                vectors_config=vectors_config,
             )
-            log_tool.log_info("Qdrant: created collection '%s'" % name)
+            log_tool.log_info("Qdrant: created collection '%s' with named vectors" % name)
         else:
             log_tool.log_info("Qdrant: collection '%s' already exists." % name)
 
@@ -70,12 +83,12 @@ def _ensure_collections(client: QdrantClient) -> None:
         client.create_payload_index(
             collection_name=COLLECTION_CANDIDATES,
             field_name="candidate_id",
-            field_schema=PayloadSchemaType.INTEGER,
+            field_schema=PayloadSchemaType.KEYWORD,
         )
         client.create_payload_index(
             collection_name=COLLECTION_JOBS,
             field_name="job_id",
-            field_schema=PayloadSchemaType.INTEGER,
+            field_schema=PayloadSchemaType.KEYWORD,
         )
         log_tool.log_info("Qdrant: ensured payload indices exist for filtered searches.")
     except Exception as e:

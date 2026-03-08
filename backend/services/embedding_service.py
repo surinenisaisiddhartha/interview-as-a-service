@@ -20,8 +20,14 @@ from utils.qdrant_client_wrapper import (
 
 # ─── Embedding Model Logic (Singleton) ────────────────────────────────────────
 
+import uuid
+
 _model = None
 _MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+def _str_to_uuid(text_id: str) -> str:
+    """Convert any string ID into a deterministic UUID for Qdrant."""
+    return str(uuid.uuid5(uuid.NAMESPACE_OID, str(text_id)))
 
 def _get_model():
     global _model
@@ -45,79 +51,96 @@ def embed(text: str) -> list[float]:
 
 # ─── Text Builders ────────────────────────────────────────────────────────────
 
-def _candidate_text(candidate) -> str:
-    """Build a single string from a Candidate ORM object for embedding."""
-    parts: list[str] = []
+def _cand_skills(candidate) -> str:
+    parts = []
     if isinstance(candidate.skills, dict):
         for skill_list in candidate.skills.values():
             if isinstance(skill_list, list):
                 parts.extend(skill_list)
-    if candidate.current_designation:
-        parts.append(candidate.current_designation)
-    if candidate.highest_degree or candidate.institution:
-        education = f"{candidate.highest_degree or ''} from {candidate.institution or ''}".strip()
-        parts.append(f"Education: {education}")
-    if candidate.summary:
-        parts.append(candidate.summary)
     return " ".join(parts)
 
-def _job_text(job) -> str:
-    """Build a single string from a Job ORM object for embedding."""
-    parts: list[str] = []
-    if isinstance(job.required_skills, list):
-        parts.extend(job.required_skills)
-    if isinstance(job.preferred_skills, list):
-        parts.extend(job.preferred_skills)
-    if job.title:
-        parts.append(job.title)
-    if job.summary:
-        parts.append(job.summary)
+def _cand_education(candidate) -> str:
+    return f"{candidate.highest_degree or ''} {candidate.highest_degree_name or ''} {candidate.institution or ''}".strip()
+
+def _job_req_skills(job) -> str:
+    return " ".join(job.required_skills) if isinstance(job.required_skills, list) else ""
+
+def _job_pref_skills(job) -> str:
+    return " ".join(job.preferred_skills) if isinstance(job.preferred_skills, list) else ""
+
+def _job_education(job) -> str:
+    if job.raw_job_json and isinstance(job.raw_job_json, dict):
+        return str(job.raw_job_json.get('education_requirements', ''))
+    return ""
+
+def _job_role(job) -> str:
+    parts = []
+    if job.title: parts.append(job.title)
+    if job.summary: parts.append(job.summary)
     return " ".join(parts)
 
 # ─── Vector Operations ─────────────────────────────────────────────────────────
 
-def upsert_candidate_vector(candidate_id: int, candidate) -> None:
+def upsert_candidate_vector(candidate_id: str, candidate) -> None:
     """Embed candidate profile and upsert to Qdrant."""
     try:
-        text = _candidate_text(candidate)
-        log_tool.log_debug("Candidate id=%s built text: %s..." % (candidate_id, text[:100]))
-        if not text.strip():
+        # Named vectors mapping
+        vectors = {}
+        
+        req_skills_text = _cand_skills(candidate)
+        if req_skills_text.strip():
+            vectors["skills"] = embed(req_skills_text)
+            
+        edu_text = _cand_education(candidate)
+        if edu_text.strip():
+            vectors["education"] = embed(edu_text)
+
+        if not vectors:
             log_tool.log_warning("Candidate id=%s has no text to embed — skipping." % candidate_id)
             return
 
-        vector = embed(text)
         client = get_qdrant_client()
         
         # Build payload with metadata
         payload = {"candidate_id": candidate_id}
         if candidate.raw_resume_json:
-            # Ensure we are passing a dict to Qdrant, not a string or nested wrapper
             payload_data = candidate.raw_resume_json
             if isinstance(payload_data, dict) and "candidate" in payload_data:
                  payload.update(payload_data["candidate"])
             elif isinstance(payload_data, dict):
                  payload.update(payload_data)
         
-        log_tool.log_debug(f"Upserting candidate {candidate_id} to Qdrant with payload keys: {list(payload.keys())}")
+        log_tool.log_debug(f"Upserting candidate {candidate_id} to Qdrant with named vectors and payload keys.")
 
         client.upsert(
             collection_name=COLLECTION_CANDIDATES,
-            points=[PointStruct(id=candidate_id, vector=vector, payload=payload)],
+            points=[PointStruct(id=_str_to_uuid(candidate_id), vector=vectors, payload=payload)],
         )
         log_tool.log_info("Qdrant: upserted candidate vector id=%s with full metadata" % candidate_id)
     except Exception as e:
         log_tool.log_warning("Qdrant upsert failed for candidate id=%s: %s" % (candidate_id, e))
 
-def upsert_job_vector(job_id: int, job) -> None:
+def upsert_job_vector(job_id: str, job) -> None:
     """Embed job description and upsert to Qdrant."""
     try:
-        text = _job_text(job)
-        log_tool.log_debug("Job id=%s built text: %s..." % (job_id, text[:100]))
-        if not text.strip():
+        vectors = {}
+        
+        req_text = _job_req_skills(job)
+        if req_text.strip(): vectors["required_skills"] = embed(req_text)
+            
+        pref_text = _job_pref_skills(job)
+        if pref_text.strip(): vectors["preferred_skills"] = embed(pref_text)
+            
+        edu_text = _job_education(job)
+        if edu_text.strip(): vectors["education"] = embed(edu_text)
+            
+        role_text = _job_role(job)
+        if role_text.strip(): vectors["role"] = embed(role_text)
+
+        if not vectors:
             log_tool.log_warning("Job id=%s has no text to embed — skipping." % job_id)
             return
 
-        vector = embed(text)
         client = get_qdrant_client()
         payload = {"job_id": job_id}
         if job.raw_job_json:
@@ -125,80 +148,68 @@ def upsert_job_vector(job_id: int, job) -> None:
 
         client.upsert(
             collection_name=COLLECTION_JOBS,
-            points=[PointStruct(id=job_id, vector=vector, payload=payload)],
+            points=[PointStruct(id=_str_to_uuid(job_id), vector=vectors, payload=payload)],
         )
         log_tool.log_info("Qdrant: upserted job vector id=%s with full metadata" % job_id)
     except Exception as e:
         log_tool.log_warning("Qdrant upsert failed for job id=%s: %s" % (job_id, e))
 
-def get_embedding_similarity(candidate_id: int, job_id: int) -> float:
-    """Compute cosine similarity between a candidate and a job via Qdrant."""
+def get_category_similarities(candidate_id: str, job_id: str) -> dict:
+    """Compute cosine similarities across named vectors (skills, education) via Qdrant."""
+    default_sims = {"required_skills_sim": 0.0, "preferred_skills_sim": 0.0, "education_sim": 0.0}
     try:
         from db.database import SessionLocal
         from db.models import Candidate, Job
 
         client = get_qdrant_client()
-        log_tool.log_debug("get_embedding_similarity: querying candidate_id=%s vs job_id=%s" % (candidate_id, job_id))
+        log_tool.log_debug("get_category_similarities: querying candidate_id=%s vs job_id=%s" % (candidate_id, job_id))
 
-        results = client.retrieve(
-            collection_name=COLLECTION_CANDIDATES,
-            ids=[candidate_id],
-            with_vectors=True,
-        )
-        if not results:
-            log_tool.log_warning("get_embedding_similarity: candidate id=%s not found in Qdrant. Attempting to embed." % candidate_id)
+        cand_uuid = _str_to_uuid(candidate_id)
+        job_uuid = _str_to_uuid(job_id)
+
+        cand_res = client.retrieve(collection_name=COLLECTION_CANDIDATES, ids=[cand_uuid], with_vectors=True)
+        if not cand_res:
             db = SessionLocal()
             try:
-                candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-                if candidate:
-                    upsert_candidate_vector(candidate_id, candidate)
-                    results = client.retrieve(
-                        collection_name=COLLECTION_CANDIDATES,
-                        ids=[candidate_id],
-                        with_vectors=True,
-                    )
+                candidate = db.query(Candidate).filter(Candidate.s3_candidate_id == candidate_id).first()
+                if candidate: upsert_candidate_vector(candidate_id, candidate)
             finally:
                 db.close()
-                
-            if not results:
-                log_tool.log_warning("get_embedding_similarity: candidate id=%s still not found in Qdrant." % candidate_id)
-                return 0.0
+            cand_res = client.retrieve(collection_name=COLLECTION_CANDIDATES, ids=[cand_uuid], with_vectors=True)
 
-        candidate_vector = results[0].vector
-        search_results = client.search(
-            collection_name=COLLECTION_JOBS,
-            query_vector=candidate_vector,
-            query_filter=Filter(
-                must=[FieldCondition(key="job_id", match=MatchValue(value=job_id))]
-            ),
-            limit=1,
-        )
-
-        if not search_results:
-            log_tool.log_warning("get_embedding_similarity: job id=%s not found in Qdrant. Attempting to embed." % job_id)
+        job_res = client.retrieve(collection_name=COLLECTION_JOBS, ids=[job_uuid], with_vectors=True)
+        if not job_res:
             db = SessionLocal()
             try:
-                job = db.query(Job).filter(Job.id == job_id).first()
-                if job:
-                    upsert_job_vector(job_id, job)
-                    search_results = client.search(
-                        collection_name=COLLECTION_JOBS,
-                        query_vector=candidate_vector,
-                        query_filter=Filter(
-                            must=[FieldCondition(key="job_id", match=MatchValue(value=job_id))]
-                        ),
-                        limit=1,
-                    )
+                job = db.query(Job).filter(Job.s3_job_id == job_id).first()
+                if job: upsert_job_vector(job_id, job)
             finally:
                 db.close()
+            job_res = client.retrieve(collection_name=COLLECTION_JOBS, ids=[job_uuid], with_vectors=True)
 
-            if not search_results:
-                log_tool.log_warning("get_embedding_similarity: job id=%s still not found in Qdrant." % job_id)
-                return 0.0
+        if not cand_res or not job_res:
+            return default_sims
 
-        score: float = search_results[0].score
-        log_tool.log_info("Qdrant: semantic similarity (candidate=%s, job=%s) = %.4f" % (candidate_id, job_id, score))
-        return max(0.0, min(1.0, float(score)))
+        cand_vectors = cand_res[0].vector or {}
+        job_vectors = job_res[0].vector or {}
+
+        def calc_sim(v1, v2):
+            import math
+            if not v1 or not v2: return 0.0
+            dot_product = sum(a * b for a, b in zip(v1, v2))
+            norm_v1 = math.sqrt(sum(a * a for a in v1))
+            norm_v2 = math.sqrt(sum(b * b for b in v2))
+            if norm_v1 == 0 or norm_v2 == 0: return 0.0
+            return max(0.0, min(1.0, float(dot_product / (norm_v1 * norm_v2))))
+
+        sims = {
+            "required_skills_sim": calc_sim(cand_vectors.get("skills"), job_vectors.get("required_skills")),
+            "preferred_skills_sim": calc_sim(cand_vectors.get("skills"), job_vectors.get("preferred_skills")),
+            "education_sim": calc_sim(cand_vectors.get("education"), job_vectors.get("education"))
+        }
+        
+        log_tool.log_info(f"Categorical Similarities calculated (candidate={candidate_id}, job={job_id}): {sims}")
+        return sims
     except Exception as e:
-        log_tool.log_warning("get_embedding_similarity failed (candidate=%s, job=%s): %s" % (candidate_id, job_id, e))
-        return 0.0
+        log_tool.log_warning("get_category_similarities failed (candidate=%s, job=%s): %s" % (candidate_id, job_id, e))
+        return default_sims

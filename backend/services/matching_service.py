@@ -16,7 +16,7 @@ class MatchingService:
         self._matcher = Matcher()
 
     def match_candidates_to_job(
-        self, candidate_ids: list[int], job_id: int
+        self, candidate_ids: list[str], job_id: str
     ) -> dict:
         """
         Match a list of candidates to one job; persist results to matches table.
@@ -49,28 +49,32 @@ class MatchingService:
             "results": final_results,
         }
 
-    def get_ranked_matches_for_job(self, job_id: int) -> dict:
+    def get_ranked_matches_for_job(
+        self, 
+        job_id: str, 
+        min_score: float = None, 
+        top_n: int = None, 
+        status: str = None
+    ) -> dict:
         """
-        Run matching for all candidates vs job, then return candidates ranked by score.
-
-        Returns:
-            Dict with job_id, job_title, company_name, total_candidates, candidates (ranked).
+        Retrieves job details, matches candidates, and sorts the results.
+        If filters are provided, it slices down the final array before returning.
         """
         db = SessionLocal()
         job_title = None
         company_name = None
         try:
-            job = db.query(JobModel).filter(JobModel.id == job_id).first()
+            job = db.query(JobModel).filter(JobModel.s3_job_id == job_id).first()
             if not job:
                 raise HTTPException(
                     status_code=404, detail="Job with id=%s not found." % job_id
                 )
             job_title = job.title
             company_name = job.company_name
-            candidates = db.query(CandidateModel).all()
+            candidates = db.query(CandidateModel).filter(CandidateModel.s3_job_id == job_id).all()
             if not candidates:
                 raise HTTPException(
-                    status_code=404, detail="No candidates found in the database."
+                    status_code=404, detail=f"No candidates found mapped to job id={job_id} in the database."
                 )
         finally:
             db.close()
@@ -81,18 +85,31 @@ class MatchingService:
                 status_code=404, detail="Matching produced no results."
             )
 
-        # --- RE-RANKING PROCESS ---
-        # We re-rank all matches strictly based on the final_match_percentage calculate by the Matcher.
+        # --- RE-RANKING AND FILTERING PROCESS ---
         from log import log_tool
         log_tool.log_info(f"Starting Re-ranking process for job_id={job_id}...")
 
+        # 1. Apply any dynamic filters requested by the frontend
+        filtered_candidates = []
+        for match in match_results:
+            if min_score is not None and match["match_scores"]["final_match_percentage"] < min_score:
+                continue
+            if status is not None and match.get("qualification_status", "").lower() != status.lower():
+                continue
+            filtered_candidates.append(match)
+
+        # 2. Sort remaining candidates by score descending
         re_ranked_candidates = sorted(
-            match_results,
+            filtered_candidates,
             key=lambda m: m["match_scores"]["final_match_percentage"],
             reverse=True,
         )
 
-        log_tool.log_info(f"Re-ranking complete. Found {len(re_ranked_candidates)} candidates.")
+        # 3. Trim to top exactly N if requested
+        if top_n is not None and top_n > 0:
+            re_ranked_candidates = re_ranked_candidates[:top_n]
+
+        log_tool.log_info(f"Re-ranking complete. Found {len(re_ranked_candidates)} candidates matching criteria.")
 
         return {
             "job_id": job_id,

@@ -1,6 +1,7 @@
 """Matching endpoints: match candidates to job, get ranked matches for a job."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 
 from log import log_tool
 from schemas import MatchCandidatesToJobRequest, BatchMatchResponse, RankedMatchesResponse
@@ -33,14 +34,19 @@ def match_candidates_to_job(payload: MatchCandidatesToJobRequest):
 
 
 @router.get("/matches/job/{job_id}", response_model=RankedMatchesResponse)
-def get_matches_for_job(job_id: int):
+def get_matches_for_job(
+    job_id: str,
+    min_score: Optional[float] = Query(None, description="Minimum final match percentage (e.g., 80.0)"),
+    top_n: Optional[int] = Query(None, description="Return exactly the top N candidates by score"),
+    status: Optional[str] = Query(None, description="Filter by qualification (e.g., 'Qualified', 'Disqualified')")
+):
     """
     For the given job_id: runs matching for all candidates against that job,
     saves/updates results in the matches table, and returns candidates ranked
     by final_match_percentage (highest first).
     """
     try:
-        return _matching_service.get_ranked_matches_for_job(job_id)
+        return _matching_service.get_ranked_matches_for_job(job_id, min_score, top_n, status)
     except HTTPException:
         raise
     except Exception as e:

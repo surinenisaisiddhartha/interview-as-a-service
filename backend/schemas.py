@@ -31,7 +31,7 @@ class CandidateSchema(BaseModel):
     Blueprint for a Candidate's technical profile.
     This matches exactly how a candidate is stored in the database.
     """
-    id: int                                      # Unique database ID
+    id: str                                      # Unique database ID
     full_name: str                               # Candidate's full name
     email: str                                   # Email address
     phone_number: Optional[str] = None           # Optional phone
@@ -68,7 +68,7 @@ class JobSchema(BaseModel):
     """
     Blueprint for a Job Description.
     """
-    id: int
+    id: str
     title: str                                   # Job title (e.g. Python Developer)
     company_name: Optional[str] = None
     min_required_experience_years: Optional[float] = 0.0
@@ -92,8 +92,8 @@ class MatchCandidatesToJobRequest(BaseModel):
     What the frontend sends to start a match.
     Example: Match these 5 candidate IDs to this 1 Job ID.
     """
-    candidate_ids: List[int]
-    job_id: int
+    candidate_ids: List[str]
+    job_id: str
 
 
 class MatchScores(BaseModel):
@@ -114,7 +114,7 @@ class MatchingResult(BaseModel):
     Detailed explanation of WHY a candidate matched a job.
     Includes what skills they had and what they were missing.
     """
-    candidate_id: Optional[int] = None
+    candidate_id: Optional[str] = None
     candidate_name: str
     job_title: str
     candidate_experience_years: float
@@ -132,7 +132,7 @@ class BatchMatchResponse(BaseModel):
     """
     Response when matching many candidates at once.
     """
-    job_id: int
+    job_id: str
     total_matched: int
     results: List[MatchingResult]
 
@@ -142,7 +142,7 @@ class IndividualRankedMatch(BaseModel):
     Simplified data for a candidate appearing in a 'Top 10' list.
     """
     rank: int                                    # 1, 2, 3...
-    candidate_id: int
+    candidate_id: str
     candidate_name: str
     experience_years: float
     embedding_similarity: Optional[float] = 0.0  # Semantic similarity boost
@@ -157,7 +157,7 @@ class RankedMatchesResponse(BaseModel):
     """
     The final list of ranked candidates for a specific job.
     """
-    job_id: int
+    job_id: str
     job_title: Optional[str] = None
     company_name: Optional[str] = None
     total_candidates: int
@@ -169,8 +169,8 @@ class MatchModelResponse(BaseModel):
     Blueprint for reading a saved match record from the 'matches' table.
     """
     id: int
-    candidate_id: int
-    job_id: int
+    candidate_id: str
+    job_id: str
     candidate_name: Optional[str] = None
     job_title: Optional[str] = None
     required_skills_score: float
@@ -196,8 +196,8 @@ class UpdateLlmPayload(BaseModel):
     Data sent to give the Retell AI Voice bot 'context' before a call.
     It needs to know who the candidate is and what the job is.
     """
-    candidate_id: int
-    job_id: int
+    candidate_id: str
+    job_id: str
 
 
 class RetellAgentResponse(BaseModel):
@@ -216,3 +216,51 @@ class RetellLlmResponse(BaseModel):
     status: str
     llm_id: str
     message: Optional[str] = None
+
+
+# ── USER SCHEMAS ─────────────────────────────────────────────────────────────
+
+class UserCreateRequest(BaseModel):
+    email: str
+    name: str
+    role: str
+    phone_number: str
+    cognito_sub: str | None = None
+
+
+class UserCreateResponse(BaseModel):
+    user_id: str
+
+
+# ── COMPANY SCHEMAS ──────────────────────────────────────────────────────────
+
+class CompanyOnboardRequest(BaseModel):
+    company_name: str
+
+
+class CompanyOnboardResponse(BaseModel):
+    company_id: str
+
+
+# ── RESUME UPLOAD SCHEMAS ────────────────────────────────────────────────────
+
+class ResumeUploadResult(BaseModel):
+    filename: str
+    status: str  # "success" | "failed"
+    candidate_id: Optional[str] = None
+    s3_key: Optional[str] = None
+    error: Optional[str] = None
+
+
+class ResumeUploadResponse(BaseModel):
+    uploaded: int
+    failed: int
+    results: List[ResumeUploadResult]
+
+
+class ProcessResumeRequest(BaseModel):
+    candidate_id: str
+    s3_key: str
+
+class BulkProcessResumeRequest(BaseModel):
+    candidates: List[ProcessResumeRequest]

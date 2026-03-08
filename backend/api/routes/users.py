@@ -14,17 +14,7 @@ router = APIRouter(prefix="/companies", tags=["Users"])
 _storage = TenantStorageService()
 
 
-class UserCreateRequest(BaseModel):
-    email: str
-    name: str
-    role: str
-    phone_number: str
-    cognito_sub: str | None = None
-
-
-class UserCreateResponse(BaseModel):
-    user_id: str
-
+from schemas import UserCreateRequest, UserCreateResponse
 
 @router.post("/{company_id}/users", response_model=UserCreateResponse)
 def create_user(

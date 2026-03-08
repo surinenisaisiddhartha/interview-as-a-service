@@ -14,13 +14,7 @@ router = APIRouter(prefix="/companies", tags=["Companies"])
 _storage = TenantStorageService()
 
 
-class CompanyOnboardRequest(BaseModel):
-    company_name: str
-
-
-class CompanyOnboardResponse(BaseModel):
-    company_id: str
-
+from schemas import CompanyOnboardRequest, CompanyOnboardResponse
 
 @router.post("", response_model=CompanyOnboardResponse)
 def onboard_company(body: CompanyOnboardRequest, db: Session = Depends(get_db)):
