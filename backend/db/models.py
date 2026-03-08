@@ -194,8 +194,8 @@ class InterviewCall(Base):
     call_status             = Column(String)
     direction               = Column(String)
 
-    candidate_id            = Column(Integer, ForeignKey("candidates.id", ondelete="SET NULL"), nullable=True, index=True)
-    job_id                  = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
+    candidate_id            = Column(String, ForeignKey("candidates.s3_candidate_id", ondelete="SET NULL"), nullable=True, index=True)
+    job_id                  = Column(String, ForeignKey("jobs.s3_job_id", ondelete="SET NULL"), nullable=True, index=True)
 
     from_number             = Column(String)
     to_number               = Column(String)

@@ -101,24 +101,24 @@ def retell_create_llm():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── 3. Update Retell LLM by Injecting SQL Variables ───────────────────────────
-@router.patch("/update-retell-llm/{llm_id}", response_model=RetellLlmResponse)
-def retell_update_llm_dynamic(llm_id: str, payload: UpdateLlmPayload, db: Session = Depends(get_db)):
-    """
-    Updates an existing Retell LLM by injecting dynamic variables from SQL into the prompt.
-    """
-    try:
-        updated_llm_id = retell_service.update_llm_dynamic(llm_id, payload.candidate_id, payload.job_id, db)
-        return {
-            "status": "updated",
-            "llm_id": updated_llm_id,
-            "message": "Variables from SQL injected into prompt successfully."
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error("Error updating Retell LLM dynamically: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+# # ── 3. Update Retell LLM by Injecting SQL Variables ───────────────────────────
+# @router.patch("/update-retell-llm/{llm_id}", response_model=RetellLlmResponse)
+# def retell_update_llm_dynamic(llm_id: str, payload: UpdateLlmPayload, db: Session = Depends(get_db)):
+#     """
+#     Updates an existing Retell LLM by injecting dynamic variables from SQL into the prompt.
+#     """
+#     try:
+#         updated_llm_id = retell_service.update_llm_dynamic(llm_id, payload.candidate_id, payload.job_id, db)
+#         return {
+#             "status": "updated",
+#             "llm_id": updated_llm_id,
+#             "message": "Variables from SQL injected into prompt successfully."
+#         }
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+#     except Exception as e:
+#         logger.error("Error updating Retell LLM dynamically: %s", e)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── 4. Create Phone Call ──────────────────────────────────────────────────────
@@ -148,8 +148,8 @@ def create_phone_call(payload: CreateCallPayload, db: Session = Depends(get_db))
 
         if payload.candidate_id and payload.job_id:
             # Check if Candidate and Job exist
-            candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
-            job = db.query(Job).filter(Job.id == payload.job_id).first()
+            candidate = db.query(Candidate).filter(Candidate.s3_candidate_id == payload.candidate_id).first()
+            job = db.query(Job).filter(Job.s3_job_id == payload.job_id).first()
 
             if not candidate:
                 raise HTTPException(status_code=404, detail=f"Candidate {payload.candidate_id} not found")
@@ -284,18 +284,18 @@ def get_call(call_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── 6. Update Call Metadata ───────────────────────────────────────────────────
-@router.patch("/update-call/{call_id}")
-def update_call(call_id: str, metadata: dict):
-    """
-    Updates the metadata of a call.
-    """
-    try:
-        call = retell_service.update_call(call_id, metadata)
-        return {"status": "updated", "call_id": call.call_id}
-    except Exception as e:
-        logger.error("Error updating call: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+# # ── 6. Update Call Metadata ───────────────────────────────────────────────────
+# @router.patch("/update-call/{call_id}")
+# def update_call(call_id: str, metadata: dict):
+#     """
+#     Updates the metadata of a call.
+#     """
+#     try:
+#         call = retell_service.update_call(call_id, metadata)
+#         return {"status": "updated", "call_id": call.call_id}
+#     except Exception as e:
+#         logger.error("Error updating call: %s", e)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── 7. Delete Call ────────────────────────────────────────────────────────────
@@ -335,18 +335,18 @@ def create_batch_call(payload: CreateBatchCallPayload, db: Session = Depends(get
 
         agent_id = payload_agent or os.getenv("RETELL_AGENT_ID")
 
-        job = db.query(Job).filter(Job.id == payload.job_id).first()
+        job = db.query(Job).filter(Job.s3_job_id == payload.job_id).first()
         if not job:
             raise HTTPException(status_code=404, detail=f"Job {payload.job_id} not found")
 
-        candidates = db.query(Candidate).filter(Candidate.id.in_(payload.candidate_ids)).all()
+        candidates = db.query(Candidate).filter(Candidate.s3_candidate_id.in_(payload.candidate_ids)).all()
         if not candidates:
             raise HTTPException(status_code=404, detail="No matching candidates found from the provided list")
 
         tasks = []
         for candidate in candidates:
             if not candidate.phone_number:
-                logger.warning(f"Skipping Candidate {candidate.id} as they lack a phone number")
+                logger.warning(f"Skipping Candidate {candidate.s3_candidate_id} as they lack a phone number")
                 continue
 
             dynamic_vars = retell_service.get_dynamic_variables(candidate, job)
@@ -356,8 +356,8 @@ def create_batch_call(payload: CreateBatchCallPayload, db: Session = Depends(get
                 "retell_llm_dynamic_variables": dynamic_vars,
                 "override_agent_id": agent_id,
                 "metadata": {
-                    "candidate_id": candidate.id,
-                    "job_id": job.id
+                    "candidate_id": candidate.s3_candidate_id,
+                    "job_id": job.s3_job_id
                 }
             })
         

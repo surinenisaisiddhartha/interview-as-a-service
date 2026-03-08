@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 class RetellService:
     def __init__(self):
         self.api_key = os.getenv("RETELL_API_KEY", "")
+        agent_id = os.getenv("RETELL_AGENT_ID", "Not Set")
+        llm_id = os.getenv("RETELL_LLM_ID", "Not Set")
+        
+        logger.info(f"RetellService Initialized. Key: {self.api_key[:6]}... | Agent: {agent_id} | LLM: {llm_id}")
+        
         if self.api_key:
             self.client = Retell(api_key=self.api_key)
         else:
@@ -96,7 +101,7 @@ class RetellService:
             raise
 
     def get_dynamic_variables(self, candidate: Candidate, job: Job) -> dict:
-        logger.info(f"Generating dynamic variables for Candidate: {candidate.id}, Job: {job.id}")
+        logger.info(f"Generating dynamic variables for Candidate: {candidate.s3_candidate_id}, Job: {job.s3_job_id}")
         
         # Basic Info
         company_name = job.company_name or "our company"
@@ -171,8 +176,8 @@ class RetellService:
         if not self.client:
             raise ValueError("RETELL_API_KEY is not set in .env")
             
-        candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-        job = db.query(Job).filter(Job.id == job_id).first()
+        candidate = db.query(Candidate).filter(Candidate.s3_candidate_id == candidate_id).first()
+        job = db.query(Job).filter(Job.s3_job_id == job_id).first()
 
         if not candidate:
             raise ValueError(f"Candidate {candidate_id} not found")
@@ -207,6 +212,13 @@ class RetellService:
             raise ValueError("RETELL_API_KEY is not set in .env")
         
         try:
+            # Debug: List numbers actually visible to this client
+            try:
+                nums = [n.phone_number for n in self.client.phone_number.list()]
+                logger.info(f"Retell API Access Check. Visible Numbers: {nums}. attempting to use: {from_number}")
+            except Exception as e_num:
+                logger.warning(f"Could not list Retell numbers: {e_num}")
+
             call = self.client.call.create_phone_call(
                 from_number=from_number,
                 to_number=to_number,

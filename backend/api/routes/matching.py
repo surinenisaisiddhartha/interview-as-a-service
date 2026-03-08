@@ -12,25 +12,25 @@ router = APIRouter(tags=["Matching"])
 _matching_service = MatchingService()
 
 
-@router.post("/match/candidates-to-job", response_model=BatchMatchResponse)
-def match_candidates_to_job(payload: MatchCandidatesToJobRequest):
-    """
-    Match multiple candidates against one job using PostgreSQL IDs.
+# @router.post("/match/candidates-to-job", response_model=BatchMatchResponse)
+# def match_candidates_to_job(payload: MatchCandidatesToJobRequest):
+#     """
+#     Match multiple candidates against one job using PostgreSQL IDs.
 
-    Input:
-        candidate_ids: [1, 2, 3]
-        job_id: 1
+#     Input:
+#         candidate_ids: [1, 2, 3]
+#         job_id: 1
 
-    Scoring: Req Skills (50%), Pref Skills (20%), Edu (10%), Exp (15%), Loc (5%).
-    All results are saved to the matches table.
-    """
-    try:
-        return _matching_service.match_candidates_to_job(
-            payload.candidate_ids, payload.job_id
-        )
-    except Exception as e:
-        log_tool.log_exception("Error in match/candidates-to-job", e)
-        raise HTTPException(status_code=500, detail=str(e))
+#     Scoring: Req Skills (50%), Pref Skills (20%), Edu (10%), Exp (15%), Loc (5%).
+#     All results are saved to the matches table.
+#     """
+#     try:
+#         return _matching_service.match_candidates_to_job(
+#             payload.candidate_ids, payload.job_id
+#         )
+#     except Exception as e:
+#         log_tool.log_exception("Error in match/candidates-to-job", e)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/matches/job/{job_id}", response_model=RankedMatchesResponse)
