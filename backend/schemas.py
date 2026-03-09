@@ -225,7 +225,6 @@ class UserCreateRequest(BaseModel):
     name: str
     role: str
     phone_number: str
-    cognito_sub: str | None = None
 
 
 class UserCreateResponse(BaseModel):

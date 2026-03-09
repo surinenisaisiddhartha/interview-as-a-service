@@ -42,16 +42,24 @@ export const onboardingApi = {
   createUser: (companyId: string, data: CreateCompanyUserRequest) =>
     apiClient.post<CreateCompanyUserResponse>(`/companies/${companyId}/users`, data),
 
-  uploadJd: (companyId: string, userId: string, file: File, extra?: Record<string, string>) => {
+  uploadJd: async (companyId: string, userId: string, file: File, extra?: Record<string, string>) => {
     const formData = new FormData();
     formData.append('file', file);
     if (extra) {
       for (const [k, v] of Object.entries(extra)) formData.append(k, v);
     }
-    return apiClient.postForm<UploadJdResponse>(`/companies/${companyId}/users/${userId}/jds/upload`, formData);
+    const res = await fetch(`/api/companies/${companyId}/users/${userId}/jds/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Upload JD failed: ${errorText}`);
+    }
+    return res.json() as Promise<UploadJdResponse>;
   },
 
-  uploadResumes: (
+  uploadResumes: async (
     companyId: string,
     userId: string,
     jdId: string,
@@ -63,9 +71,14 @@ export const onboardingApi = {
     if (extra) {
       for (const [k, v] of Object.entries(extra)) formData.append(k, v);
     }
-    return apiClient.postForm<UploadResumesResponse>(
-      `/companies/${companyId}/users/${userId}/jds/${jdId}/resumes`,
-      formData
-    );
+    const res = await fetch(`/api/companies/${companyId}/users/${userId}/jds/${jdId}/resumes`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Upload resumes failed: ${errorText}`);
+    }
+    return res.json() as Promise<UploadResumesResponse>;
   },
 };

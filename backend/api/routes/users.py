@@ -46,16 +46,7 @@ def create_user(
         if existing_by_email:
             raise HTTPException(status_code=400, detail="User with this email already exists")
 
-        # Only check cognito_sub if it is provided
-        if body.cognito_sub is not None:
-            existing_by_sub = (
-                db.query(User).filter(User.cognito_sub == body.cognito_sub).first()
-            )
-            if existing_by_sub:
-                raise HTTPException(
-                    status_code=400, detail="User with this Cognito subject already exists"
-                )
-
+        # Only checking email uniqueness during initial creation. cognito_sub is populated later.
         # Create S3 folder structure first — the returned user_id IS the PK
         user_id = _storage.onboard_user(
             company_id=company_id,
@@ -68,7 +59,7 @@ def create_user(
         # Persist to DB using the S3 ID as the primary key, linked to the company
         db_user = User(
             id=user_id,
-            cognito_sub=body.cognito_sub,
+            cognito_sub=None,
             email=body.email,
             name=body.name,
             phone_number=body.phone_number,
