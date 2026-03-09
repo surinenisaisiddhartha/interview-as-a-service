@@ -13,8 +13,8 @@ DATABASE_URL = os.getenv(
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,       # Detect stale connections
-    pool_size=10,
-    max_overflow=20,
+    pool_size=5,
+    max_overflow=10,
     echo=False,               # Set True for SQL query logging
 )
 

@@ -154,6 +154,7 @@ def save_candidate_from_resume(
 def save_job_from_jd(
     parsed_jd: dict, 
     company_name: Optional[str] = None, 
+    client_company: Optional[str] = None,
     s3_link: Optional[str] = None,
     s3_job_id: Optional[str] = None
 ) -> Job:
@@ -182,6 +183,7 @@ def save_job_from_jd(
         s3_job_id=s3_job_id,
         title=title,
         company_name=company_name,
+        client_company=client_company,
         min_required_experience_years=job_data.get("min_required_experience_years"),
         max_required_experience_years=job_data.get("max_required_experience_years"),
         location=job_data.get("location"),

@@ -18,6 +18,7 @@ from api.routes import (
     users_router,
     jd_upload_router,
     resume_upload_router,
+    candidates_router,
 )
 
 # Import so SQLAlchemy Base has all models; required before create_all
@@ -62,6 +63,7 @@ app.include_router(matching_router)
 app.include_router(retell_router)
 app.include_router(resumes_router)
 app.include_router(jobs_router)
+app.include_router(candidates_router)
 
 
 

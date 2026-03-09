@@ -20,7 +20,7 @@ class ParseJDService:
         self._jd_parser = JDParser()
         self._matcher = Matcher()
 
-    def run(self, file_bytes: bytes, filename: str, company_name: Optional[str] = None, s3_link: Optional[str] = None, s3_job_id: Optional[str] = None) -> dict:
+    def run(self, file_bytes: bytes, filename: str, company_name: Optional[str] = None, client_company: Optional[str] = None, s3_link: Optional[str] = None, s3_job_id: Optional[str] = None) -> dict:
         """
         Parse JD from file content, save job to DB, and match against all candidates.
 
@@ -28,6 +28,7 @@ class ParseJDService:
             file_bytes: Raw file content (PDF or TXT).
             filename: Original filename (used for format detection).
             company_name: Optional company name to store with the job.
+            client_company: Optional client company name to store with the job.
             s3_link: S3 URL where the file is stored.
 
         Returns:
@@ -46,8 +47,14 @@ class ParseJDService:
 
         job = None
         try:
-            job = save_job_from_jd(result, company_name=company_name, s3_link=s3_link, s3_job_id=s3_job_id)
-            log_tool.log_info("💼 JD saved to DB: job id=%s company=%s" % (job.s3_job_id, company_name))
+            job = save_job_from_jd(
+                result, 
+                company_name=company_name, 
+                client_company=client_company, 
+                s3_link=s3_link, 
+                s3_job_id=s3_job_id
+            )
+            log_tool.log_info("💼 JD saved to DB: job id=%s company=%s client=%s" % (job.s3_job_id, company_name, client_company))
         except Exception as insert_error:
             log_tool.log_warning("⚠️ DB insert skipped (duplicate or error): %s" % insert_error)
 

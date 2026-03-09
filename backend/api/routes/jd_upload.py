@@ -18,6 +18,7 @@ async def upload_jd(
     user_id: str,
     file: UploadFile = File(...),
     role: str = Form(..., description="Job role/title, e.g. 'Backend Engineer' — used for folder name"),
+    client_company: str = Form(None, description="Optional custom client company name"),
 ):
     """
     Upload a job description file.
@@ -58,6 +59,7 @@ async def upload_jd(
             content,
             file.filename,
             company_name=company_id,
+            client_company=client_company,
             s3_link=s3_link,
             s3_job_id=jd_id,
         )

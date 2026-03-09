@@ -31,7 +31,7 @@ class CandidateSchema(BaseModel):
     Blueprint for a Candidate's technical profile.
     This matches exactly how a candidate is stored in the database.
     """
-    id: str                                      # Unique database ID
+    s3_candidate_id: str                          # Unique database ID (S3 ID)
     full_name: str                               # Candidate's full name
     email: str                                   # Email address
     phone_number: Optional[str] = None           # Optional phone

@@ -14,6 +14,7 @@ _parse_jd_service = ParseJDService()
 async def parse_jd(
     file: UploadFile = File(...),
     company_name: str = Form(None),
+    client_company: str = Form(None),
     s3_link: str = Form(None),
 ):
     """
@@ -28,7 +29,7 @@ async def parse_jd(
     try:
         content = await file.read()
         result = _parse_jd_service.run(
-            content, file.filename, company_name=company_name, s3_link=s3_link
+            content, file.filename, company_name=company_name, client_company=client_company, s3_link=s3_link
         )
         return result
     except ValueError as e:

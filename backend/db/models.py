@@ -70,6 +70,7 @@ class Job(Base):
     s3_job_id                       = Column(String, primary_key=True)
     title                           = Column(String, nullable=False)
     company_name                    = Column(String)         
+    client_company                  = Column(String)
     min_required_experience_years   = Column(Float)
     max_required_experience_years   = Column(Float)
     location                        = Column(String)
