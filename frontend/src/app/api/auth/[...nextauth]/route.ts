@@ -66,8 +66,9 @@ export const authOptions: NextAuthOptions = {
                     const result = await pool.query(
                         `INSERT INTO users (id, cognito_sub, email, role)
                          VALUES ($1, $2, $3, $4::"Role")
-                         ON CONFLICT (cognito_sub) DO UPDATE
-                           SET role = EXCLUDED.role
+                         ON CONFLICT (email) DO UPDATE
+                           SET cognito_sub = EXCLUDED.cognito_sub,
+                               role = EXCLUDED.role
                          RETURNING id, role, company_id`,
                         [newUserId, cognitoSub, email, dbRole]
                     );

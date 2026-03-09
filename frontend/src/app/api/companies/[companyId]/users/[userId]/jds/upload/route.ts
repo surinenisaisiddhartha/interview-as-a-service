@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(
     req: Request,
-    { params }: { params: { companyId: string; userId: string } }
+    { params }: { params: Promise<{ companyId: string; userId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -13,7 +13,8 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { companyId, userId } = params;
+        const resolvedParams = await params;
+        const { companyId, userId } = resolvedParams;
 
         // Security check: ensure user belongs to the company context they are uploading to
         const userCompanyId = (session as any)?.user?.companyId;

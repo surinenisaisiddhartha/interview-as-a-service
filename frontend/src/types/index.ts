@@ -59,8 +59,11 @@ export interface JD {
   id: string;
   title: string;
   companyId: string;
+  companyName?: string;
+  clientCompany?: string;
   skills: string[];
   status: 'active' | 'draft';
+  createdAt?: string;
 }
 
 export interface Resume {

@@ -85,8 +85,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       { to: '/recruiter/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/recruiter/jds', icon: Briefcase, label: 'JD Section' },
       { to: '/recruiter/candidates', icon: Users, label: 'Candidates' },
-      { to: '/recruiter/interviews', icon: Microscope, label: 'Interviews' },
-      { to: '/recruiter/schedule', icon: Calendar, label: 'Schedule' },
+      { to: '/recruiter/interviews', icon: Calendar, label: 'Interviews & Schedule' },
       { to: '/recruiter/results', icon: ClipboardList, label: 'Results' },
     ],
   };
