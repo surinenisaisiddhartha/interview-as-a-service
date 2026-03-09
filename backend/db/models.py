@@ -184,6 +184,25 @@ class User(Base):
         return f"<User id={self.id} email={self.email} role={self.role}>"
 
 
+class RetellAgent(Base):
+    __tablename__ = "retell_agents"
+
+    agent_id    = Column(String, primary_key=True)
+    agent_name  = Column(String)
+    llm_id      = Column(String)
+    company_id  = Column(String, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    status      = Column(String, default="online")
+    created_at  = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self):
+        return f"<RetellAgent id={self.agent_id} name={self.agent_name} company={self.company_id}>"
+
+
 class InterviewCall(Base):
     __tablename__ = "interview_calls"
 
@@ -222,6 +241,11 @@ class InterviewCall(Base):
     combined_cost           = Column(Float)
 
     metadata_json           = Column(JSONB)  # Renamed because metadata is a reserved attribute on SQLAlchemy models
+    
+    # Relationships
+    from sqlalchemy.orm import relationship
+    candidate = relationship("Candidate", backref="interviews")
+    job = relationship("Job", backref="interviews")
 
     created_at              = Column(
         DateTime(timezone=True),

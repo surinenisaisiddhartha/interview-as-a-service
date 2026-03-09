@@ -44,6 +44,10 @@ class ResumeParser:
                 return {}
 
         if parsed_resume:
+            if "error" in parsed_resume:
+                log_tool.log_error("LLM returned an error: %s" % parsed_resume["error"])
+                return {}
+
             saved_path = JsonFileSaver.save_json(
                 parsed_resume, self.output_dir, "resume_parsed"
             )

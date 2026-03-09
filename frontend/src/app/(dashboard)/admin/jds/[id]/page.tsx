@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,12 @@ import {
     X, BarChart3, Loader2, Search, Filter, ChevronRight,
     User, MoreHorizontal, Check, ExternalLink, Sparkles,
     MapPin, Calendar, Download, BadgeCheck, Clock, Mail, Phone,
-    ArrowLeft, Share2, Printer
+    ArrowLeft, Share2, Printer, PhoneCall
 } from 'lucide-react';
 import { JD } from '@/types';
 import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/input';
+import { retellApi } from '@/services/retell.api';
 
 export default function JDDetailPage() {
     const params = useParams();
@@ -22,6 +23,8 @@ export default function JDDetailPage() {
     const { data: session } = useSession();
     const id = params?.id as string;
     const userId = (session as any)?.user?.id;
+    const pathname = usePathname();
+    const basePath = pathname.startsWith('/admin') ? '/admin' : '/recruiter';
 
     const [jd, setJd] = useState<JD | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +41,33 @@ export default function JDDetailPage() {
     // Search & Filter State
     const [searchTerm, setSearchTerm] = useState('');
     const [isDragging, setIsDragging] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [minScore, setMinScore] = useState<number>(0);
+    const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [topN, setTopN] = useState<number>(0);
+
+    // Calling status
+    const [activeCallId, setActiveCallId] = useState<string | null>(null);
+    const [isBatchCalling, setIsBatchCalling] = useState(false);
+
+    const fetchMatches = async () => {
+        if (!id) return;
+        try {
+            let url = `/api/jds/${id}/matches?`;
+            if (minScore > 0) url += `min_score=${minScore}&`;
+            if (statusFilter && statusFilter !== 'All') url += `status=${statusFilter}&`;
+            if (topN > 0) url += `top_n=${topN}&`;
+
+            const matchesRes = await fetch(url);
+            if (matchesRes.ok) {
+                const matchesData = await matchesRes.json();
+                setResults(matchesData.match_data || {});
+                setShowResults(true);
+            }
+        } catch (error) {
+            console.error("Error fetching matches:", error);
+        }
+    };
 
     useEffect(() => {
         const fetchJDData = async () => {
@@ -48,15 +78,7 @@ export default function JDDetailPage() {
                 if (jdRes.ok) {
                     const jdData = await jdRes.json();
                     setJd(jdData);
-
-                    const matchesRes = await fetch(`/api/jds/${id}/matches`);
-                    if (matchesRes.ok) {
-                        const matchesData = await matchesRes.json();
-                        if (matchesData.match_data && Object.keys(matchesData.match_data).length > 0) {
-                            setResults(matchesData.match_data);
-                            setShowResults(true);
-                        }
-                    }
+                    await fetchMatches();
                 } else {
                     toast.error("Failed to load job description");
                 }
@@ -70,6 +92,13 @@ export default function JDDetailPage() {
 
         fetchJDData();
     }, [id]);
+
+    // Re-fetch matches when filters change
+    useEffect(() => {
+        if (id && !isLoading) {
+            fetchMatches();
+        }
+    }, [minScore, statusFilter, topN]);
 
     const handleUpload = async (uploadedFiles: File[]) => {
         if (uploadedFiles.length === 0) return;
@@ -173,6 +202,43 @@ export default function JDDetailPage() {
             });
     }, [results, searchTerm]);
 
+    const handleCallCandidate = async (candidateId: string, name: string) => {
+        setActiveCallId(candidateId);
+        try {
+            await retellApi.createCall(candidateId, id);
+            toast.success(`Call initiated successfully for ${name}!`);
+            // Refresh matches to get the newly created latest_call_id
+            fetchMatches();
+        } catch (error: any) {
+            toast.error(`Failed to trigger call: ${error.message}`);
+        } finally {
+            setActiveCallId(null);
+        }
+    };
+
+    const handleBatchCall = async () => {
+        if (sortedCandidates.length === 0) {
+            toast.error("No candidates found in the current filtered list!");
+            return;
+        }
+
+        const candidateIds = sortedCandidates.map((c: any) => c.candidate_id);
+
+        if (!confirm(`Trigger AI Voice Interview calls for all ${candidateIds.length} visible candidates?`)) {
+            return;
+        }
+
+        setIsBatchCalling(true);
+        try {
+            const res = await retellApi.createBatchCall(id, candidateIds);
+            toast.success(`Batch triggered! ID: ${res.batch_id}. Calling ${candidateIds.length} candidates.`);
+        } catch (error: any) {
+            toast.error(`Batch call failed: ${error.message}`);
+        } finally {
+            setIsBatchCalling(false);
+        }
+    };
+
     if (isLoading) return <div className="p-24 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
     if (!jd) return <div className="p-24 text-center">Role not found</div>;
 
@@ -238,27 +304,40 @@ export default function JDDetailPage() {
             </div>
 
             {/* Pending Files Action Bar */}
-            {pendingCandidates.length > 0 && (
-                <div className="bg-blue-600 text-white rounded-2xl px-6 py-4 flex items-center justify-between shadow-xl shadow-blue-200 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <CheckCircle2 className="w-5 h-5" />
+            <div className="flex flex-wrap gap-4 items-center">
+                {pendingCandidates.length > 0 && (
+                    <div className="flex-1 min-w-[300px] bg-blue-600 text-white rounded-2xl px-6 py-4 flex items-center justify-between shadow-xl shadow-blue-200 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="font-bold">{pendingCandidates.length} Resumes Ready</p>
+                                <p className="text-xs text-blue-100 opacity-90">Upload successful. Ready to run AI matching analysis.</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-bold">{pendingCandidates.length} Resumes Ready</p>
-                            <p className="text-xs text-blue-100 opacity-90">Upload successful. Ready to run AI matching analysis.</p>
-                        </div>
+                        <Button
+                            onClick={handleProcess}
+                            disabled={processing}
+                            className="bg-white text-blue-600 hover:bg-blue-50 rounded-xl font-bold px-8"
+                        >
+                            {processing ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                            {processing ? 'Analyzing...' : 'Process All Resumes'}
+                        </Button>
                     </div>
+                )}
+
+                {sortedCandidates.length > 0 && (
                     <Button
-                        onClick={handleProcess}
-                        disabled={processing}
-                        className="bg-white text-blue-600 hover:bg-blue-50 rounded-xl font-bold px-8"
+                        onClick={handleBatchCall}
+                        disabled={isBatchCalling}
+                        className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-bold px-8 h-14 shadow-lg shadow-emerald-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                        {processing ? 'Analyzing...' : 'Process All Resumes'}
+                        {isBatchCalling ? <Loader2 className="animate-spin w-5 h-5 mr-2" /> : <PhoneCall className="w-5 h-5 mr-2" />}
+                        {isBatchCalling ? 'Triggering Calls...' : 'Call All Filtered Candidates'}
                     </Button>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Main Candidates Section */}
             <div className="space-y-4">
@@ -274,7 +353,11 @@ export default function JDDetailPage() {
                         />
                     </div>
                     <div className="flex items-center space-x-2 w-full sm:w-auto">
-                        <Button variant="outline" className="rounded-xl border-slate-200 text-slate-600 text-sm flex-1 sm:flex-none">
+                        <Button
+                            variant={showFilters ? "default" : "outline"}
+                            className={`rounded-xl border-slate-200 text-sm flex-1 sm:flex-none ${showFilters ? 'bg-blue-600 text-white' : 'text-slate-600'}`}
+                            onClick={() => setShowFilters(!showFilters)}
+                        >
                             <Filter className="w-4 h-4 mr-2" /> Filters
                         </Button>
                         <Button variant="outline" className="rounded-xl border-slate-200 text-slate-600 text-sm flex-1 sm:flex-none">
@@ -282,6 +365,68 @@ export default function JDDetailPage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Filter Controls Panel */}
+                {showFilters && (
+                    <Card className="border-slate-200 shadow-sm rounded-2xl bg-white border p-6 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-wider text-slate-500">Min Score: {minScore}%</label>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={minScore}
+                                    onChange={(e) => setMinScore(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-wider text-slate-500">Status</label>
+                                <div className="flex gap-1">
+                                    {['All', 'Qualified', 'Disqualified'].map((status) => (
+                                        <button
+                                            key={status}
+                                            onClick={() => setStatusFilter(status)}
+                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${statusFilter === status
+                                                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100'
+                                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                                                }`}
+                                        >
+                                            {status}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-black uppercase tracking-wider text-slate-500">Limit (Top N)</label>
+                                <Input
+                                    type="number"
+                                    placeholder="0 for all"
+                                    value={topN === 0 ? '' : topN}
+                                    onChange={(e) => setTopN(parseInt(e.target.value) || 0)}
+                                    className="h-9 text-xs rounded-xl border-slate-200"
+                                />
+                            </div>
+
+                            <div className="flex items-end justify-end">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setMinScore(0);
+                                        setStatusFilter('All');
+                                        setTopN(0);
+                                    }}
+                                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                )}
 
                 {/* Candidate List */}
                 <Card className="border-slate-200 shadow-sm overflow-hidden rounded-2xl bg-white border">
@@ -352,6 +497,14 @@ export default function JDDetailPage() {
                                                 onClick={() => fetchCandidateProfile(c.candidate_id)}
                                             >
                                                 View Profile
+                                            </Button>
+                                            <Button
+                                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs px-4 h-9 border border-indigo-100"
+                                                onClick={() => handleCallCandidate(c.candidate_id, c.candidate_name)}
+                                                disabled={activeCallId === c.candidate_id}
+                                            >
+                                                {activeCallId === c.candidate_id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Phone className="w-3 h-3 mr-1" />}
+                                                Call
                                             </Button>
                                             <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs px-4 h-9 shadow-md shadow-blue-100">
                                                 Shortlist
@@ -571,8 +724,28 @@ export default function JDDetailPage() {
                                                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-sm h-11 shadow-lg shadow-blue-100">
                                                     Shortlist Candidate
                                                 </Button>
-                                                <Button variant="outline" className="w-full border-slate-200 text-slate-700 rounded-xl font-bold text-sm h-11 bg-white">
-                                                    Schedule Interview
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full border-indigo-200 text-indigo-700 rounded-xl font-bold text-sm h-11 bg-indigo-50/50 hover:bg-indigo-50"
+                                                    onClick={() => handleCallCandidate(candidateProfile.s3_candidate_id, candidateProfile.full_name)}
+                                                    disabled={activeCallId === candidateProfile.s3_candidate_id}
+                                                >
+                                                    {activeCallId === candidateProfile.s3_candidate_id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PhoneCall className="w-4 h-4 mr-2" />}
+                                                    Start Voice Interview
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full border-slate-200 text-slate-700 rounded-xl font-bold text-sm h-11 bg-white"
+                                                    onClick={() => {
+                                                        const latestCallId = results[candidateProfile.s3_candidate_id]?.latest_call_id;
+                                                        if (latestCallId) {
+                                                            router.push(`${basePath}/results/${latestCallId}`);
+                                                        } else {
+                                                            router.push(`${basePath}/results?candidateId=${candidateProfile.s3_candidate_id}`);
+                                                        }
+                                                    }}
+                                                >
+                                                    Interview Results
                                                 </Button>
                                             </div>
                                         </div>

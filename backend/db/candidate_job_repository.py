@@ -44,6 +44,10 @@ def save_candidate_from_resume(
         SQLAlchemyError:   On any other DB error (transaction is rolled back).
     """
     candidate_data: dict = parsed_resume.get("candidate", parsed_resume)
+    
+    # Check for LLM errors early
+    if "error" in candidate_data:
+        raise ValueError(f"Cannot save candidate: LLM parsing error - {candidate_data['error']}")
 
     email = candidate_data.get("email")
     if not email:
@@ -116,8 +120,10 @@ def save_candidate_from_resume(
             existing_candidate.raw_resume_json = candidate.raw_resume_json
             existing_candidate.s3_link = s3_link
             
-            if s3_candidate_id:
-                existing_candidate.s3_candidate_id = s3_candidate_id
+            # if s3_candidate_id:
+            #     existing_candidate.s3_candidate_id = s3_candidate_id
+            # NOTE: We do NOT update the primary key s3_candidate_id if the candidate already exists.
+            # This avoids violating foreign key constraints in table 'matches'.
             if s3_job_id:
                 existing_candidate.s3_job_id = s3_job_id
                 

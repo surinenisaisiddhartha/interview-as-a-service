@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/ui/datatable';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Plus, MoreHorizontal, Building2, Users as UsersIcon, Activity, Shield } from 'lucide-react';
+import { Search, Filter, Plus, MoreHorizontal, Building2, Users as UsersIcon, Activity, Shield, BrainCircuit } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { FormInput } from '@/components/forms/form-input';
 import { useRouter } from 'next/navigation';
@@ -92,9 +92,25 @@ export default function SuperAdminCompanies() {
             )
         },
         {
+            header: 'Assigned Voice Agent', accessor: (c: any) => (
+                <div className="flex flex-col space-y-1">
+                    {c.assigned_agents && c.assigned_agents.length > 0 ? (
+                        c.assigned_agents.map((name: string, idx: number) => (
+                            <div key={idx} className="flex items-center text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md w-fit">
+                                <BrainCircuit className="w-3 h-3 mr-1.5" />
+                                {name}
+                            </div>
+                        ))
+                    ) : (
+                        <span className="text-xs text-gray-400 font-medium italic">No agent assigned</span>
+                    )}
+                </div>
+            )
+        },
+        {
             header: 'Enrolled Date', accessor: (c: any) => (
                 <div className="flex items-center space-x-2 text-sm text-gray-600 font-medium">
-                    {new Date(c.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    {c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                 </div>
             )
         },
@@ -194,7 +210,23 @@ export default function SuperAdminCompanies() {
                                     </button>
                                 </div>
                                 <h3 className="font-bold text-lg text-gray-900 mb-1">{c.name}</h3>
-                                <p className="text-xs text-gray-500 font-medium mb-6">ID: {c.id || 'N/A'}</p>
+                                <p className="text-xs text-gray-500 font-medium mb-4">ID: {c.id || 'N/A'}</p>
+
+                                <div className="space-y-2 mb-6">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Assigned Voice Agents</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {c.assigned_agents && c.assigned_agents.length > 0 ? (
+                                            c.assigned_agents.map((name: string, idx: number) => (
+                                                <div key={idx} className="flex items-center text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
+                                                    <BrainCircuit className="w-3 h-3 mr-1" />
+                                                    {name}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <span className="text-[10px] text-gray-400 font-medium italic">No agent assigned</span>
+                                        )}
+                                    </div>
+                                </div>
 
                                 <div className="mt-auto space-y-4">
                                     <div className="flex items-center justify-between text-sm text-gray-500">

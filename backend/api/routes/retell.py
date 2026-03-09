@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Optional
 from pydantic import BaseModel
 import logging
 import os
 from dotenv import set_key
 from sqlalchemy.orm import Session
 from db.database import SessionLocal
-from db.models import Role, User, Company, Candidate, Job, InterviewCall
+from db.models import Role, User, Company, Candidate, Job, InterviewCall, RetellAgent
 from services.retell_service import RetellService
 from log import log_tool
 from schemas import (
@@ -14,7 +15,10 @@ from schemas import (
     RetellLlmResponse,
     CreateCallPayload,
     CreateBatchCallPayload,
-    CallResponse
+    CallResponse,
+    AgentAssignmentRequest,
+    RetellAgentSchema,
+    InterviewCallSchema
 )
 
 logger = logging.getLogger(__name__)
@@ -46,32 +50,58 @@ def update_env_id(key: str, value: str):
 
 # ── 1. Create Retell Agent ────────────────────────────────────────────────────
 @router.post("/create-agent", response_model=RetellAgentResponse)
-def retell_create_agent(llm_id: str):
+def retell_create_agent(llm_id: str, db: Session = Depends(get_db)):
     """
     Creates a Retell voice agent linked to the given LLM.
-
-    Query param:
-        llm_id — the RETELL_LLM_ID returned from /create-llm
-
-    Returns:
-        agent_id — save this in your .env as RETELL_AGENT_ID
     """
     try:
         agent_id = retell_service.create_agent(llm_id)
         
+        # PERSIST to DB
+        agent_count = db.query(RetellAgent).count()
+        new_agent = RetellAgent(
+            agent_id=agent_id,
+            agent_name=f"Voice Agent #{agent_count + 1}",
+            llm_id=llm_id
+        )
+        db.add(new_agent)
+        db.commit()
+
         # Automatically update .env
         update_env_id("RETELL_AGENT_ID", agent_id)
 
         return {
             "status": "created",
             "agent_id": agent_id,
-            "message": f"Automatically updated .env → RETELL_AGENT_ID={agent_id}",
+            "message": f"Automatically updated .env and DB → RETELL_AGENT_ID={agent_id}",
         }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        db.rollback()
         logger.error("Error creating Retell Agent: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/agents", response_model=List[RetellAgentSchema])
+def list_agents(db: Session = Depends(get_db)):
+    """Lists all created Retell agents from the database."""
+    return db.query(RetellAgent).order_by(RetellAgent.created_at.desc()).all()
+
+
+@router.post("/assign-agent")
+def assign_agent_to_company(payload: AgentAssignmentRequest, db: Session = Depends(get_db)):
+    """Assigns an existing agent to a specific company."""
+    agent = db.query(RetellAgent).filter(RetellAgent.agent_id == payload.agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    company = db.query(Company).filter(Company.id == payload.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    agent.company_id = payload.company_id
+    db.commit()
+
+    return {"status": "success", "message": f"Agent {payload.agent_id} assigned to {company.name}"}
 
 
 # ── 2. Create Retell LLM ──────────────────────────────────────────────────────
@@ -136,15 +166,14 @@ def create_phone_call(payload: CreateCallPayload, db: Session = Depends(get_db))
 
         def format_phone(num: str) -> str:
             if not num: return num
-            num = num.strip()
-            # 1. Already in E.164 format? Leave it.
-            if num.startswith("+"):
-                return num
-            # 2. Is it a 10-digit number? Assume it's Indian and add +91
-            if len(num) == 10 and num.isdigit():
-                return f"+91{num}"
-            # 3. Otherwise, just add '+' (Fallback)
-            return f"+{num}"
+            # Remove all spaces and special characters, keep '+' and digits
+            cleaned = "".join(c for c in num if c.isdigit() or c == "+")
+            
+            if cleaned.startswith("+"):
+                return cleaned
+            if len(cleaned) == 10 and cleaned.isdigit():
+                return f"+91{cleaned}"
+            return f"+{cleaned}"
 
         if payload.candidate_id and payload.job_id:
             # Check if Candidate and Job exist
@@ -188,6 +217,26 @@ def create_phone_call(payload: CreateCallPayload, db: Session = Depends(get_db))
             retell_llm_dynamic_variables=dynamic_vars
         )
         
+        # SAVE INITIAL CALL TO DB SO MATCHING SERVICE CAN SEE IT AS LATEST
+        try:
+            new_call_record = InterviewCall(
+                call_id=call.call_id,
+                agent_id=call.agent_id,
+                call_status=call.call_status,
+                candidate_id=payload.candidate_id if payload.candidate_id != "string" else None,
+                job_id=payload.job_id if payload.job_id != "string" else None,
+                from_number=from_number,
+                to_number=to_number,
+                direction="outbound",
+                metadata_json=enhanced_metadata
+            )
+            db.add(new_call_record)
+            db.commit()
+            logger.info(f"Initialized call record in DB for call_id: {call.call_id}")
+        except Exception as e:
+            db.rollback()
+            logger.warning(f"Could not initialize call record in DB: {e}. It will be saved later during get-call/webhook.")
+
         return {
             "call_id": call.call_id,
             "agent_id": call.agent_id,
@@ -205,7 +254,7 @@ def create_phone_call(payload: CreateCallPayload, db: Session = Depends(get_db))
 
 
 # ── 5. Get Call Details ───────────────────────────────────────────────────────
-@router.get("/get-call/{call_id}", response_model=CallResponse)
+@router.get("/get-call/{call_id}", response_model=InterviewCallSchema)
 def get_call(call_id: str, db: Session = Depends(get_db)):
     """
     Retrieves call details from Retell and stores them in DB automatically.
@@ -276,8 +325,12 @@ def get_call(call_id: str, db: Session = Depends(get_db)):
 
         db.commit()
 
-        # Return the call object (FastAPI/Pydantic will handle serialization to CallResponse)
-        return call
+        # Re-fetch from DB to get the populated relationships
+        final_call = db.query(InterviewCall).filter(InterviewCall.call_id == call.call_id).first()
+        if final_call.candidate: final_call.candidate_name = final_call.candidate.full_name
+        if final_call.job: final_call.job_title = final_call.job.title
+
+        return final_call
 
     except Exception as e:
         logger.error("Error getting/storing call: %s", e)
@@ -324,10 +377,10 @@ def create_batch_call(payload: CreateBatchCallPayload, db: Session = Depends(get
 
         def format_phone(num: str) -> str:
             if not num: return num
-            num = num.strip()
-            if num.startswith("+"): return num
-            if len(num) == 10 and num.isdigit(): return f"+91{num}"
-            return f"+{num}"
+            cleaned = "".join(c for c in num if c.isdigit() or c == "+")
+            if cleaned.startswith("+"): return cleaned
+            if len(cleaned) == 10 and cleaned.isdigit(): return f"+91{cleaned}"
+            return f"+{cleaned}"
 
         from_number = format_phone(payload_from or os.getenv("RETELL_PHONE_NUMBER"))
         if not from_number:
@@ -373,3 +426,25 @@ def create_batch_call(payload: CreateBatchCallPayload, db: Session = Depends(get
     except Exception as e:
         logger.error("Error creating batch call: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/calls", response_model=List[InterviewCallSchema])
+def list_all_calls(
+    candidate_id: Optional[str] = Query(None),
+    job_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Lists all interview calls from the database with optional filters.
+    """
+    query = db.query(InterviewCall)
+    if candidate_id:
+        query = query.filter(InterviewCall.candidate_id == candidate_id)
+    if job_id:
+        query = query.filter(InterviewCall.job_id == job_id)
+    
+    calls = query.order_by(InterviewCall.created_at.desc()).all()
+    for c in calls:
+        if c.candidate: c.candidate_name = c.candidate.full_name
+        if c.job: c.job_title = c.job.title
+    return calls
+
+

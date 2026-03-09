@@ -13,9 +13,18 @@ export async function GET(
         }
 
         const { id } = await params;
+        const { searchParams } = new URL(req.url);
+        const min_score = searchParams.get('min_score');
+        const status = searchParams.get('status');
+        const top_n = searchParams.get('top_n');
+
+        let backendUrl = `http://localhost:8000/matches/job/${id}?`;
+        if (min_score) backendUrl += `min_score=${min_score}&`;
+        if (status) backendUrl += `status=${status}&`;
+        if (top_n) backendUrl += `top_n=${top_n}&`;
 
         // Forward to python backend matching service
-        const backendRes = await fetch(`http://localhost:8000/matches/job/${id}`, {
+        const backendRes = await fetch(backendUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

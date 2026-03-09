@@ -21,7 +21,7 @@ class GeminiClient:
             raise ValueError("Use .env file or export GEMINI_API_KEY/GOOGLE_API_KEY to proceed.")
 
         self.client = genai.Client(api_key=self.api_key)
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
         log_tool.log_info("Using Gemini Model: %s" % self.model_name)
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
@@ -56,7 +56,7 @@ class GeminiClient:
                     "Rate limit hit for model %s. You might be on a free tier." % self.model_name
                 )
                 return {
-                    "error": "Rate limit exceeded. Please try again in a minute or switch to a faster model like gemini-1.5-flash."
+                    "error": "Rate limit exceeded. Please try again in a minute or switch to a faster model like gemini-2.5-flash."
                 }
             return {}
 

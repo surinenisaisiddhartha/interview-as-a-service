@@ -54,13 +54,24 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const result = await pool.query(
-            `SELECT id, name, created_at AS "createdAt"
-             FROM companies
-             ORDER BY created_at DESC`
-        );
+        // Proxy to the Python FastAPI backend
+        // This ensures we get the companies including their assigned agents
+        const backendRes = await fetch('http://localhost:8000/companies', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
 
-        return NextResponse.json(result.rows);
+        if (!backendRes.ok) {
+            console.error('FastAPI Backend returned error for GET /companies');
+            return NextResponse.json({ error: 'Failed to fetch companies from backend' }, { status: backendRes.status });
+        }
+
+        const data = await backendRes.json();
+
+        // Match frontend expected naming (e.g. createdAt instead of created_at)
+        // Note: The FastAPI backend currently returns created_at if included. 
+        // Let's ensure consistency if we want it displayed.
+        return NextResponse.json(data);
     } catch (error) {
         console.error('Failed to fetch companies:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

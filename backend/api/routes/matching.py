@@ -38,15 +38,16 @@ def get_matches_for_job(
     job_id: str,
     min_score: Optional[float] = Query(None, description="Minimum final match percentage (e.g., 80.0)"),
     top_n: Optional[int] = Query(None, description="Return exactly the top N candidates by score"),
-    status: Optional[str] = Query(None, description="Filter by qualification (e.g., 'Qualified', 'Disqualified')")
+    status: Optional[str] = Query(None, description="Filter by qualification (e.g., 'Qualified', 'Disqualified')"),
+    refresh: bool = Query(False, description="Set to true to force re-calculation of matching scores")
 ):
     """
-    For the given job_id: runs matching for all candidates against that job,
+    For the given job_id: runs matching for all candidates against that job (or fetches from cache),
     saves/updates results in the matches table, and returns candidates ranked
     by final_match_percentage (highest first).
     """
     try:
-        return _matching_service.get_ranked_matches_for_job(job_id, min_score, top_n, status)
+        return _matching_service.get_ranked_matches_for_job(job_id, min_score, top_n, status, refresh)
     except HTTPException:
         raise
     except Exception as e:

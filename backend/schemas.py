@@ -151,6 +151,7 @@ class IndividualRankedMatch(BaseModel):
     missing_required_skills: List[str]
     matched_preferred_skills: List[str]
     qualification_status: Optional[str] = None
+    latest_call_id: Optional[str] = None
 
 
 class RankedMatchesResponse(BaseModel):
@@ -216,6 +217,25 @@ class RetellLlmResponse(BaseModel):
     status: str
     llm_id: str
     message: Optional[str] = None
+
+
+class AgentAssignmentRequest(BaseModel):
+    """Payload to assign an agent to a company."""
+    agent_id: str
+    company_id: str
+
+
+class RetellAgentSchema(BaseModel):
+    """Schema for returning agent details from the database."""
+    agent_id: str
+    agent_name: Optional[str] = None
+    llm_id: Optional[str] = None
+    company_id: Optional[str] = None
+    status: Optional[str] = "online"
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ── USER SCHEMAS ─────────────────────────────────────────────────────────────
@@ -376,3 +396,40 @@ class CallResponse(BaseModel):
     call_analysis: Optional[CallAnalysis] = None
     call_cost: Optional[CallCost] = None
     latency: Optional[CallLatency] = None
+
+
+class InterviewCallSchema(BaseModel):
+    """
+    Schema for persisting/reading InterviewCall from DB.
+    """
+    id: int
+    call_id: str
+    agent_id: Optional[str] = None
+    call_status: Optional[str] = None
+    direction: Optional[str] = None
+    candidate_id: Optional[str] = None
+    candidate_name: Optional[str] = None
+    job_id: Optional[str] = None
+    job_title: Optional[str] = None
+    from_number: Optional[str] = None
+    to_number: Optional[str] = None
+    start_timestamp: Optional[int] = None
+    duration_ms: Optional[int] = None
+    transcript: Optional[str] = None
+    recording_url: Optional[str] = None
+    public_log_url: Optional[str] = None
+    call_summary: Optional[str] = None
+    user_sentiment: Optional[str] = None
+    interview_score: Optional[float] = None
+    technical_assessment: Optional[str] = None
+    communication_quality: Optional[str] = None
+    strengths: Optional[str] = None
+    weaknesses: Optional[str] = None
+    recommend_hire: Optional[bool] = None
+    interview_outcome: Optional[str] = None
+    combined_cost: Optional[float] = None
+    metadata_json: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

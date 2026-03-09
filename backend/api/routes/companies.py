@@ -16,6 +16,28 @@ _storage = TenantStorageService()
 
 from schemas import CompanyOnboardRequest, CompanyOnboardResponse
 
+@router.get("", response_model=list[dict])
+def list_companies(db: Session = Depends(get_db)):
+    """List all registered companies with their assigned Retell agents."""
+    from db.models import RetellAgent
+    companies = db.query(Company).order_by(Company.created_at.desc()).all()
+    results = []
+    
+    for c in companies:
+        # Fetch agents assigned to this company
+        agents = db.query(RetellAgent).filter(RetellAgent.company_id == c.id).all()
+        agent_names = [a.agent_name for a in agents]
+        
+        results.append({
+            "id": c.id,
+            "name": c.name,
+            "createdAt": c.created_at.isoformat() if c.created_at else None,
+            "assigned_agents": agent_names
+        })
+        
+    return results
+
+
 @router.post("", response_model=CompanyOnboardResponse)
 def onboard_company(body: CompanyOnboardRequest, db: Session = Depends(get_db)):
     """

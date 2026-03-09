@@ -5,7 +5,7 @@ Matching use cases: match candidates to job by IDs; get ranked matches for a job
 from fastapi import HTTPException
 
 from db.database import SessionLocal
-from db.models import Candidate as CandidateModel, Job as JobModel
+from db.models import Candidate as CandidateModel, Job as JobModel, Match as MatchModel, InterviewCall as InterviewCallModel
 from match_engine.candidate_job_matcher import Matcher
 
 
@@ -54,7 +54,8 @@ class MatchingService:
         job_id: str, 
         min_score: float = None, 
         top_n: int = None, 
-        status: str = None
+        status: str = None,
+        refresh: bool = False
     ) -> dict:
         """
         Retrieves job details, matches candidates, and sorts the results.
@@ -79,11 +80,60 @@ class MatchingService:
         finally:
             db.close()
 
-        match_results = self._matcher.match_all_candidates_for_job(job_id)
-        if not match_results:
-            raise HTTPException(
-                status_code=404, detail="Matching produced no results."
+        # Try to fetch from database first to avoid expensive re-calculations
+        db = SessionLocal()
+        match_results = []
+        try:
+            # Join with Candidate to get the actual experience years if available
+            # Also try to find the latest call_id for this candidate/job
+            existing_matches = (
+                db.query(MatchModel, CandidateModel.overall_experience_years)
+                .join(CandidateModel, MatchModel.candidate_id == CandidateModel.s3_candidate_id)
+                .filter(MatchModel.job_id == job_id)
+                .all()
             )
+
+            if existing_matches and not refresh:
+                from log import log_tool
+                log_tool.log_info(f"Using {len(existing_matches)} existing matches from DB for job_id={job_id}")
+                for m, exp_years in existing_matches:
+                    # Find last call ID if exists
+                    last_call = db.query(InterviewCallModel).filter(
+                        InterviewCallModel.candidate_id == m.candidate_id,
+                        InterviewCallModel.job_id == m.job_id
+                    ).order_by(InterviewCallModel.created_at.desc(), InterviewCallModel.id.desc()).first()
+                    
+                    match_results.append({
+                        "candidate_id": m.candidate_id,
+                        "candidate_name": m.candidate_name,
+                        "qualification_status": m.qualification_status,
+                        "candidate_experience_years": exp_years or 0.0,
+                        "latest_call_id": last_call.call_id if last_call else None,
+                        "embedding_similarity": 0.0,
+                        "match_scores": {
+                            "required_skills_score": m.required_skills_score,
+                            "preferred_skills_score": m.preferred_skills_score,
+                            "education_score": m.education_score,
+                            "experience_score": m.experience_score,
+                            "location_score": m.location_score,
+                            "final_match_percentage": m.final_match_percentage,
+                        },
+                        "matched_required_skills": m.matched_required_skills or [],
+                        "missing_required_skills": m.missing_required_skills or [],
+                        "matched_preferred_skills": m.matched_preferred_skills or [],
+                    })
+        finally:
+            db.close()
+
+        if not match_results:
+            # Running matching engine if no matches found or refresh requested
+            from log import log_tool
+            log_tool.log_info(f"Running matching engine for job_id={job_id} (refresh={refresh})")
+            match_results = self._matcher.match_all_candidates_for_job(job_id)
+            if not match_results:
+                raise HTTPException(
+                    status_code=404, detail="Matching produced no results."
+                )
 
         # --- RE-RANKING AND FILTERING PROCESS ---
         from log import log_tool
@@ -96,6 +146,19 @@ class MatchingService:
                 continue
             if status is not None and match.get("qualification_status", "").lower() != status.lower():
                 continue
+            
+            # Ensure latest_call_id is present even for matches from the engine (re-checking DB)
+            if "latest_call_id" not in match:
+                db_sub = SessionLocal()
+                try:
+                    last_call = db_sub.query(InterviewCallModel).filter(
+                        InterviewCallModel.candidate_id == match["candidate_id"],
+                        InterviewCallModel.job_id == job_id
+                    ).order_by(InterviewCallModel.created_at.desc(), InterviewCallModel.id.desc()).first()
+                    match["latest_call_id"] = last_call.call_id if last_call else None
+                finally:
+                    db_sub.close()
+
             filtered_candidates.append(match)
 
         # 2. Sort remaining candidates by score descending

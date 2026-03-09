@@ -47,6 +47,7 @@
 #         raise HTTPException(status_code=500, detail=str(e))
 import os
 import json
+import time
 from typing import List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, BackgroundTasks
@@ -190,6 +191,8 @@ async def process_resume_from_temp(
     failed = []
 
     for candidate_req in req.candidates:
+        # Prevent hitting rate limits (especially on free tier)
+        time.sleep(2)
         local_raw_path = os.path.join(temp_dir, f"{candidate_req.candidate_id}_raw.txt")
         
         if not os.path.exists(local_raw_path):
@@ -213,7 +216,7 @@ async def process_resume_from_temp(
                 _storage.upload_file(json_bytes, json_key, "application/json")
             
             # 2. Save candidate to PostgreSQL
-            save_candidate_from_resume(
+            candidate_obj = save_candidate_from_resume(
                 parsed_resume=parsed_result,
                 s3_link=candidate_req.s3_key,  # URL to original pdf
                 s3_candidate_id=candidate_req.candidate_id,
@@ -224,7 +227,7 @@ async def process_resume_from_temp(
             os.remove(local_raw_path)
             log_tool.log_info(f"Deleted temporary raw text file: {local_raw_path}")
             
-            processed.append(candidate_req.candidate_id)
+            processed.append(candidate_obj.s3_candidate_id)
             
         except Exception as e:
             log_tool.log_exception(f"Resume processing failed for candidate '{candidate_req.candidate_id}'", e)
@@ -234,7 +237,7 @@ async def process_resume_from_temp(
     rank_data_map = {}
     if processed:
         try:
-            ranked_payload = _matching_service.get_ranked_matches_for_job(jd_id)
+            ranked_payload = _matching_service.get_ranked_matches_for_job(jd_id, refresh=True)
             for candidate in ranked_payload.get("candidates", []):
                 if candidate.get("candidate_id") in processed:
                     rank_data_map[candidate.get("candidate_id")] = candidate
