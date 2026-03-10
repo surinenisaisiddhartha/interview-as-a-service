@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(
     req: Request,
-    { params }: { params: Promise<{ companyId: string; userId: string }> }
+    { params }: { params: any }
 ) {
     try {
         const session = await getServerSession(authOptions);
