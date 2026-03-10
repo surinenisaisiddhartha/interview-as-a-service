@@ -3,7 +3,10 @@
     "builds": [
         {
             "src": "backend/main.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "maxDuration": 60
+            }
         },
         {
             "src": "frontend/package.json",
@@ -12,12 +15,8 @@
     ],
     "rewrites": [
         {
-            "source": "/api/:match*",
+            "source": "/api/(.*)",
             "destination": "backend/main.py"
-        },
-        {
-            "source": "/(.*)",
-            "destination": "frontend/$1"
         }
     ]
 }
