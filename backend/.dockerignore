@@ -1,0 +1,11 @@
+.git
+__pycache__
+*.pyc
+.venv
+venv
+env
+.env
+logs
+temp_extracted_resumes
+node_modules
+.next
