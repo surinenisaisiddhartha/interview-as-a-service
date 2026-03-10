@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(
     req: Request,
-    { params }: { params: { companyId: string; userId: string; jdId: string } }
+    { params }: { params: Promise<{ companyId: string; userId: string; jdId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -13,7 +13,7 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { companyId, userId, jdId } = params;
+        const { companyId, userId, jdId } = await params;
 
         // Security check
         const userCompanyId = (session as any)?.user?.companyId;
